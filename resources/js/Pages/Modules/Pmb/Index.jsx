@@ -1,0 +1,559 @@
+﻿import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ModuleHero from '@/Components/ModuleHero';
+import Modal from '@/Components/Modal';
+import PrimaryButton from '@/Components/PrimaryButton';
+import SecondaryButton from '@/Components/SecondaryButton';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+
+const badge = {
+    verified: 'bg-emerald-100 text-emerald-700',
+    pending: 'bg-amber-100 text-amber-700',
+    rejected: 'bg-rose-100 text-rose-700',
+    paid: 'bg-emerald-100 text-emerald-700',
+    unpaid: 'bg-slate-100 text-slate-700',
+    failed: 'bg-rose-100 text-rose-700',
+};
+
+const label = {
+    verified: 'Verified',
+    pending: 'Pending',
+    rejected: 'Rejected',
+    paid: 'Paid',
+    unpaid: 'Unpaid',
+    failed: 'Failed',
+};
+
+function PaginationButtons({ links = [], onClick }) {
+    if (!links.length) return null;
+
+    return (
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
+            {links.map((link, index) => (
+                <button
+                    key={`${link.label}-${index}`}
+                    type="button"
+                    disabled={!link.url}
+                    onClick={() => link.url && onClick(link.url)}
+                    className={`rounded-xl px-3 py-2 text-xs font-semibold ${
+                        link.active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50'
+                    }`}
+                >
+                    {link.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function HistoryCard({ item }) {
+    return (
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{item.nomor_pendaftaran}</p>
+                    <h4 className="mt-1 text-sm font-bold text-slate-900">{item.nama_lengkap || '-'}</h4>
+                    <p className="mt-1 text-xs text-slate-500">
+                        {item.created_at ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(item.created_at)) : '-'}
+                    </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badge[item.status_verifikasi] || 'bg-slate-100 text-slate-700'}`}>
+                        {label[item.status_verifikasi] || item.status_verifikasi}
+                    </span>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badge[item.status_pembayaran] || 'bg-slate-100 text-slate-700'}`}>
+                        {label[item.status_pembayaran] || item.status_pembayaran}
+                    </span>
+                </div>
+            </div>
+        </article>
+    );
+}
+
+function VerificationCard({ item, onApprove, onReject, onDetail }) {
+    return (
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{item.nomor_pendaftaran}</p>
+                    <h4 className="mt-1 text-sm font-bold text-slate-900">{item.nama_lengkap || '-'}</h4>
+                    <p className="mt-1 text-sm text-slate-600">
+                        {item.prodi ? `${item.prodi.nama} (${item.prodi.jenjang})` : '-'} - {item.gelombang || '-'}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">{item.user?.email || item.email || '-'}</p>
+                    {item.catatan && <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">Catatan: {item.catatan}</p>}
+                </div>
+                <div className="flex flex-col gap-2 lg:items-end">
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badge[item.status_verifikasi] || 'bg-slate-100 text-slate-700'}`}>
+                        {label[item.status_verifikasi] || item.status_verifikasi}
+                    </span>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badge[item.status_pembayaran] || 'bg-slate-100 text-slate-700'}`}>
+                        {label[item.status_pembayaran] || item.status_pembayaran}
+                    </span>
+                    <p className="text-xs text-slate-500">{item.created_at ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(item.created_at)) : '-'}</p>
+                    <div className="flex flex-wrap gap-2">
+                        <button type="button" className="btn-outline" onClick={() => onDetail(item)}>
+                            Detail
+                        </button>
+                        <button type="button" className="btn-primary" onClick={() => onApprove(item)}>
+                            Verifikasi
+                        </button>
+                        <button type="button" className="btn-outline" onClick={() => onReject(item)}>
+                            Tolak
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </article>
+    );
+}
+
+export default function Page({ auth, prodis = [], riwayat = [], summary = null, verificationItems = { data: [], meta: null, links: [] }, verificationSummary = null, canManageVerification = false, verificationFilters = null }) {
+    const { menu, flash } = usePage().props;
+    const [rejectTarget, setRejectTarget] = useState(null);
+    const [rejectNote, setRejectNote] = useState('');
+    const [detailTarget, setDetailTarget] = useState(null);
+    const [toast, setToast] = useState(null);
+    const [verificationSearch, setVerificationSearch] = useState(verificationFilters?.search || '');
+    const [verificationStatus, setVerificationStatus] = useState(verificationFilters?.status || 'all');
+    const [verificationPaymentStatus, setVerificationPaymentStatus] = useState(verificationFilters?.payment_status || 'all');
+    const [verificationPerPage, setVerificationPerPage] = useState(String(verificationFilters?.per_page || 10));
+    const form = useForm({
+        prodi_id: '',
+        gelombang: 'Gelombang 1',
+        nama_lengkap: auth.user.name || '',
+        email: auth.user.email || '',
+        phone: '',
+        asal_sekolah: '',
+        dokumen_ktp: null,
+        dokumen_ijazah: null,
+        dokumen_foto: null,
+    });
+
+    const submit = (e) => {
+        e.preventDefault();
+        form.post(route('pmb.store'), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => form.reset('prodi_id', 'gelombang', 'phone', 'asal_sekolah', 'dokumen_ktp', 'dokumen_ijazah', 'dokumen_foto'),
+        });
+    };
+
+    const stats = [
+        { label: 'Total Pendaftar', value: summary?.total ?? 0 },
+        { label: 'Pending Verifikasi', value: summary?.pending ?? 0 },
+        { label: 'Verified', value: summary?.verified ?? 0 },
+        { label: 'Sudah Bayar', value: summary?.paid ?? 0 },
+    ];
+
+    const verificationStats = [
+        { label: 'Total PMB', value: verificationSummary?.total ?? 0 },
+        { label: 'Pending', value: verificationSummary?.pending ?? 0 },
+        { label: 'Verified', value: verificationSummary?.verified ?? 0 },
+        { label: 'Rejected', value: verificationSummary?.rejected ?? 0 },
+    ];
+
+    const updateVerification = (item, status_verifikasi, catatan = null) => {
+        router.patch(route('pmb.verification.update', item.id), { status_verifikasi, catatan }, {
+            preserveScroll: true,
+            onSuccess: () => router.reload({ only: ['verificationItems', 'summary', 'riwayat'] }),
+        });
+    };
+
+    const approveItem = (item) => updateVerification(item, 'verified');
+    const detailItem = (item) => setDetailTarget(item);
+    const rejectItem = (item) => {
+        setRejectTarget(item);
+        setRejectNote(item.catatan || '');
+    };
+
+    const submitReject = (e) => {
+        e.preventDefault();
+        if (!rejectTarget) {
+            return;
+        }
+
+        updateVerification(rejectTarget, 'rejected', rejectNote.trim() || null);
+        setRejectTarget(null);
+        setRejectNote('');
+    };
+
+    useEffect(() => {
+        if (!toast) {
+            return undefined;
+        }
+
+        const timer = setTimeout(() => setToast(null), 2400);
+        return () => clearTimeout(timer);
+    }, [toast]);
+
+    const copyValue = async (value, labelText) => {
+        if (!value) {
+            setToast({ type: 'error', message: `${labelText} tidak tersedia` });
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(String(value));
+            setToast({ type: 'success', message: `${labelText} disalin` });
+        } catch {
+            setToast({ type: 'error', message: `Gagal menyalin ${labelText}` });
+        }
+    };
+
+    const applyVerificationFilters = (pageUrl = null) => {
+        const payload = {
+            verification_search: verificationSearch,
+            verification_status: verificationStatus,
+            verification_payment_status: verificationPaymentStatus,
+            verification_per_page: verificationPerPage,
+        };
+
+        if (pageUrl) {
+            router.get(pageUrl, {}, { preserveScroll: true, preserveState: true });
+            return;
+        }
+
+        router.get(route('pmb.index'), payload, { preserveScroll: true, preserveState: true, replace: true });
+    };
+
+    const resetVerificationFilters = () => {
+        setVerificationSearch('');
+        setVerificationStatus('all');
+        setVerificationPaymentStatus('all');
+        setVerificationPerPage('10');
+        router.get(route('pmb.index'), {}, { preserveScroll: true, preserveState: true, replace: true });
+    };
+
+    return (
+        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-2xl font-extrabold text-slate-900">PMB - Admission Center</h2>}>
+            <Head title="PMB" />
+
+            {toast?.message && (
+                <div
+                    className={`fixed right-4 top-4 z-50 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ${
+                        toast.type === 'error' ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
+                    }`}
+                >
+                    {toast.message}
+                </div>
+            )}
+
+            {flash?.success && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{flash.success}</div>}
+            {flash?.error && <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{flash.error}</div>}
+
+            <ModuleHero
+                eyebrow="Penerimaan Mahasiswa Baru"
+                title="Admission Center"
+                description="Kelola pendaftaran, status verifikasi, dan progres pembayaran PMB dalam satu layar."
+                note={`Total pendaftaran: ${summary?.total ?? 0}`}
+            />
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {stats.map((item) => (
+                    <article key={item.label} className="panel p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
+                        <p className="mt-1 text-2xl font-extrabold text-slate-900">{item.value}</p>
+                    </article>
+                ))}
+            </div>
+
+            <div className="mt-4 grid gap-5 xl:grid-cols-5">
+                <form onSubmit={submit} className="panel p-5 xl:col-span-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 className="text-base font-bold text-slate-900">Formulir Pendaftaran</h3>
+                            <p className="mt-1 text-sm text-slate-600">Lengkapi data calon mahasiswa dengan benar untuk proses verifikasi.</p>
+                        </div>
+                        <Link href={route('pmb.payment')} className="btn-outline">
+                            Payment Gateway
+                        </Link>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label className="label">Gelombang</label>
+                            <input className="field" value={form.data.gelombang} onChange={(e) => form.setData('gelombang', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="label">Program Studi</label>
+                            <select className="field" value={form.data.prodi_id} onChange={(e) => form.setData('prodi_id', e.target.value)}>
+                                <option value="">Pilih Prodi</option>
+                                {prodis.map((p) => <option key={p.id} value={p.id}>{p.nama} ({p.jenjang})</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="label">Nama Lengkap</label>
+                            <input className="field" value={form.data.nama_lengkap} onChange={(e) => form.setData('nama_lengkap', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="label">Email</label>
+                            <input className="field" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="label">No. HP</label>
+                            <input className="field" value={form.data.phone} onChange={(e) => form.setData('phone', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="label">Asal Sekolah</label>
+                            <input className="field" value={form.data.asal_sekolah} onChange={(e) => form.setData('asal_sekolah', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="label">Dokumen KTP</label>
+                            <input type="file" className="field" onChange={(e) => form.setData('dokumen_ktp', e.target.files?.[0] || null)} />
+                        </div>
+                        <div>
+                            <label className="label">Dokumen Ijazah</label>
+                            <input type="file" className="field" onChange={(e) => form.setData('dokumen_ijazah', e.target.files?.[0] || null)} />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="label">Pas Foto</label>
+                            <input type="file" className="field" onChange={(e) => form.setData('dokumen_foto', e.target.files?.[0] || null)} />
+                        </div>
+                    </div>
+
+                    <button type="submit" className="btn-primary mt-5" disabled={form.processing}>
+                        {form.processing ? 'Menyimpan...' : 'Simpan Pendaftaran'}
+                    </button>
+                </form>
+
+                <div className="panel p-5 xl:col-span-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 className="text-base font-bold text-slate-900">Riwayat Pendaftaran</h3>
+                            <p className="mt-1 text-sm text-slate-600">Monitoring status verifikasi dan pembayaran PMB.</p>
+                        </div>
+                        <Link href={route('pmb.payment')} className="btn-outline">
+                            Ke Payment
+                        </Link>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                        {riwayat.length === 0 && <p className="text-sm text-slate-500">Belum ada data pendaftaran.</p>}
+                        {riwayat.map((item) => (
+                            <HistoryCard key={item.id} item={item} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {canManageVerification && (
+                <div className="panel mt-5 p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 className="text-base font-bold text-slate-900">Verifikasi PMB</h3>
+                            <p className="mt-1 text-sm text-slate-600">Kelola status verifikasi pendaftar yang masuk.</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <a
+                                href={route('pmb.verification.export.csv', { verification_search: verificationSearch, verification_payment_status: verificationPaymentStatus })}
+                                className="btn-outline"
+                            >
+                                Export CSV Pending
+                            </a>
+                            <a
+                                href={route('pmb.verification.export.pdf', { verification_search: verificationSearch, verification_payment_status: verificationPaymentStatus })}
+                                className="btn-primary"
+                            >
+                                Export PDF Pending
+                            </a>
+                            <a
+                                href={route('pmb.verification.export.xlsx', { verification_search: verificationSearch, verification_payment_status: verificationPaymentStatus })}
+                                className="btn-outline"
+                            >
+                                Export XLSX Pending
+                            </a>
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                                {(verificationItems?.meta?.total ?? verificationItems?.data?.length ?? 0)} pendaftar
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        {verificationStats.map((item) => (
+                            <article key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
+                                <p className="mt-1 text-2xl font-extrabold text-slate-900">{item.value}</p>
+                            </article>
+                        ))}
+                    </div>
+
+                    <div className="mt-4 grid gap-2 lg:grid-cols-[minmax(0,1fr)_180px_180px_140px_auto_auto]">
+                        <input
+                            className="form-input"
+                            placeholder="Cari nomor, nama, email, atau prodi"
+                            value={verificationSearch}
+                            onChange={(e) => setVerificationSearch(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && applyVerificationFilters()}
+                        />
+                        <select className="form-input" value={verificationStatus} onChange={(e) => setVerificationStatus(e.target.value)}>
+                            <option value="all">Semua Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="verified">Verified</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                        <select className="form-input" value={verificationPaymentStatus} onChange={(e) => setVerificationPaymentStatus(e.target.value)}>
+                            <option value="all">Semua Pembayaran</option>
+                            <option value="unpaid">Unpaid</option>
+                            <option value="paid">Paid</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                        <select className="form-input" value={verificationPerPage} onChange={(e) => setVerificationPerPage(e.target.value)}>
+                            <option value="10">10 / halaman</option>
+                            <option value="30">30 / halaman</option>
+                            <option value="50">50 / halaman</option>
+                            <option value="100">100 / halaman</option>
+                        </select>
+                        <button type="button" className="btn-primary" onClick={() => applyVerificationFilters()}>
+                            Terapkan
+                        </button>
+                        <button type="button" className="btn-outline" onClick={resetVerificationFilters}>
+                            Reset
+                        </button>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                        {(verificationItems?.data || []).length === 0 && <p className="text-sm text-slate-500">Belum ada data PMB untuk diverifikasi.</p>}
+                        {(verificationItems?.data || []).map((item) => (
+                            <VerificationCard key={item.id} item={item} onApprove={approveItem} onReject={rejectItem} onDetail={detailItem} />
+                        ))}
+                    </div>
+                    <PaginationButtons links={verificationItems?.links || []} onClick={(pageUrl) => applyVerificationFilters(pageUrl)} />
+                </div>
+            )}
+
+            <Modal show={Boolean(rejectTarget)} onClose={() => setRejectTarget(null)} maxWidth="lg">
+                <form onSubmit={submitReject} className="p-6">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900">Tolak PMB</h3>
+                        <p className="mt-1 text-sm text-slate-600">
+                            Tambahkan catatan jika diperlukan untuk pendaftar {rejectTarget?.nomor_pendaftaran || '-'}.
+                        </p>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                        <p className="font-semibold text-slate-900">{rejectTarget?.nama_lengkap || '-'}</p>
+                        <p className="mt-1">{rejectTarget?.prodi ? `${rejectTarget.prodi.nama} (${rejectTarget.prodi.jenjang})` : '-'}</p>
+                    </div>
+
+                    <div className="mt-4">
+                        <label className="label">Catatan Penolakan</label>
+                        <textarea
+                            className="field min-h-28"
+                            value={rejectNote}
+                            onChange={(e) => setRejectNote(e.target.value)}
+                            placeholder="Contoh: Dokumen belum lengkap atau foto tidak terbaca."
+                        />
+                    </div>
+
+                    <div className="mt-6 flex flex-wrap justify-end gap-3">
+                        <SecondaryButton type="button" onClick={() => setRejectTarget(null)}>
+                            Batal
+                        </SecondaryButton>
+                        <PrimaryButton type="submit">
+                            Tolak PMB
+                        </PrimaryButton>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal show={Boolean(detailTarget)} onClose={() => setDetailTarget(null)} maxWidth="2xl">
+                <div className="p-6">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900">Detail PMB</h3>
+                            <p className="mt-1 text-sm text-slate-600">Informasi lengkap pendaftar sebelum verifikasi.</p>
+                        </div>
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${badge[detailTarget?.status_verifikasi] || 'bg-slate-100 text-slate-700'}`}>
+                            {label[detailTarget?.status_verifikasi] || detailTarget?.status_verifikasi || '-'}
+                        </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                            <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Nomor Pendaftaran</p>
+                            <p className="mt-1 font-semibold text-slate-900">{detailTarget?.nomor_pendaftaran || '-'}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                            <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Gelombang</p>
+                            <p className="mt-1 font-semibold text-slate-900">{detailTarget?.gelombang || '-'}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                            <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Nama Lengkap</p>
+                            <p className="mt-1 font-semibold text-slate-900">{detailTarget?.nama_lengkap || '-'}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                            <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Program Studi</p>
+                            <p className="mt-1 font-semibold text-slate-900">{detailTarget?.prodi ? `${detailTarget.prodi.nama} (${detailTarget.prodi.jenjang})` : '-'}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                            <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Email</p>
+                            <p className="mt-1 font-semibold text-slate-900">{detailTarget?.email || detailTarget?.user?.email || '-'}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                            <p className="text-xs uppercase tracking-[0.14em] text-slate-400">No. HP</p>
+                            <p className="mt-1 font-semibold text-slate-900">{detailTarget?.phone || '-'}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                            <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Asal Sekolah</p>
+                            <p className="mt-1 font-semibold text-slate-900">{detailTarget?.asal_sekolah || '-'}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                            <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Status Pembayaran</p>
+                            <p className="mt-1 font-semibold text-slate-900">{label[detailTarget?.status_pembayaran] || detailTarget?.status_pembayaran || '-'}</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        {[
+                            ['KTP', 'dokumen_ktp', detailTarget?.dokumen_ktp],
+                            ['Ijazah', 'dokumen_ijazah', detailTarget?.dokumen_ijazah],
+                            ['Foto', 'dokumen_foto', detailTarget?.dokumen_foto],
+                        ].map(([title, field, path]) => (
+                            <div key={title} className="rounded-2xl border border-slate-200 bg-white p-4 text-sm">
+                                <p className="text-xs uppercase tracking-[0.14em] text-slate-400">{title}</p>
+                                {path ? (
+                                    <a
+                                        href={route('pmb.documents.download', [detailTarget?.id, field])}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="mt-1 inline-flex items-center gap-2 font-semibold text-sky-700 hover:text-sky-600"
+                                    >
+                                        Download dokumen
+                                    </a>
+                                ) : (
+                                    <p className="mt-1 break-all font-semibold text-slate-900">-</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        <button type="button" className="btn-outline" onClick={() => copyValue(detailTarget?.nomor_pendaftaran, 'Nomor pendaftaran')}>
+                            Copy Nomor
+                        </button>
+                        <button type="button" className="btn-outline" onClick={() => copyValue(detailTarget?.email || detailTarget?.user?.email, 'Email')}>
+                            Copy Email
+                        </button>
+                        <button type="button" className="btn-outline" onClick={() => copyValue(detailTarget?.phone, 'No. HP')}>
+                            Copy No. HP
+                        </button>
+                    </div>
+
+                    {detailTarget?.catatan && (
+                        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                            <p className="text-xs uppercase tracking-[0.14em] text-amber-500">Catatan</p>
+                            <p className="mt-1 font-medium">{detailTarget.catatan}</p>
+                        </div>
+                    )}
+
+                    <div className="mt-6 flex justify-end">
+                        <SecondaryButton type="button" onClick={() => setDetailTarget(null)}>
+                            Tutup
+                        </SecondaryButton>
+                    </div>
+                </div>
+            </Modal>
+        </AuthenticatedLayout>
+    );
+}

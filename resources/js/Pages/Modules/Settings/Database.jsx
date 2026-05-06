@@ -1,0 +1,315 @@
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import Modal from '@/Components/Modal';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { useState } from 'react';
+
+function formatKb(bytes) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+export default function DatabaseMaintenancePage({ auth, backups = [], maintenanceLogs = [], logFilters = {} }) {
+    const { menu, flash, errors } = usePage().props;
+    const backupForm = useForm({});
+    const restoreForm = useForm({ backup_file: null });
+    const resetForm = useForm({ confirmation: '' });
+    const purgeForm = useForm({ older_than_days: 30 });
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [confirmAction, setConfirmAction] = useState(null);
+
+    const isBusy = backupForm.processing || restoreForm.processing || resetForm.processing || purgeForm.processing;
+    const currentError = errors?.backup_file || errors?.confirmation;
+
+    const openConfirm = (type) => setConfirmAction(type);
+    const closeConfirm = () => {
+        if (isBusy) {
+            return;
+        }
+
+        setConfirmAction(null);
+    };
+
+    const handleConfirmAction = () => {
+        if (confirmAction === 'purge') {
+            purgeForm.post(route('settings.database.purge'), {
+                preserveScroll: true,
+                onFinish: () => setConfirmAction(null),
+            });
+
+            return;
+        }
+
+        if (confirmAction === 'reset') {
+            resetForm.post(route('settings.database.reset'), {
+                preserveScroll: true,
+                onFinish: () => setConfirmAction(null),
+            });
+        }
+    };
+
+    return (
+        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-bold text-slate-900">Maintenance Database</h2>}>
+            <Head title="Maintenance Database" />
+
+            <div className="space-y-5">
+                <section className="overflow-hidden rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_46%),linear-gradient(140deg,_#ffffff,_#f8fafc)] p-5 shadow-sm sm:p-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Superadmin Console</p>
+                    <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Database Control Tower</h3>
+                    <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">Panel ini dibuat untuk operasi kritikal: backup, restore, dan reset data. Jalankan hanya saat maintenance terkontrol.</p>
+
+                    {flash?.success && <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{flash.success}</div>}
+                    {currentError && <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">{currentError}</div>}
+                </section>
+
+                <section className="grid gap-4 lg:grid-cols-3">
+                    <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Backup</p>
+                        <h4 className="mt-2 text-lg font-black text-slate-900">Snapshot Database</h4>
+                        <p className="mt-2 text-xs leading-5 text-slate-600">Buat salinan SQL terbaru sebelum perubahan besar.</p>
+
+                        <button
+                            className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-sky-600 to-cyan-500 px-4 py-2.5 text-xs font-extrabold uppercase tracking-[0.12em] text-white shadow-[0_10px_24px_-14px_rgba(2,132,199,0.9)] transition hover:brightness-105 disabled:opacity-60"
+                            disabled={isBusy}
+                            onClick={() => backupForm.post(route('settings.database.backup'), { preserveScroll: true })}
+                        >
+                            {backupForm.processing ? 'Membuat Backup...' : 'Buat Backup'}
+                        </button>
+
+                        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Purge Backup Lama</p>
+                            <p className="mt-2 text-[11px] leading-5 text-slate-500">Hapus file backup yang lebih tua dari ambang hari berikut. Pastikan backup terbaru sudah aman.</p>
+                            <input
+                                type="number"
+                                min={1}
+                                max={3650}
+                                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs disabled:opacity-60"
+                                disabled={isBusy}
+                                value={purgeForm.data.older_than_days}
+                                onChange={(event) => purgeForm.setData('older_than_days', Number(event.target.value || 1))}
+                            />
+                            <button
+                                className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold text-white transition hover:bg-slate-700 disabled:opacity-60"
+                                disabled={isBusy}
+                                onClick={() => openConfirm('purge')}
+                            >
+                                {purgeForm.processing ? 'Menghapus Backup Lama...' : 'Hapus Backup Lama'}
+                            </button>
+                        </div>
+                    </article>
+
+                    <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Restore</p>
+                        <h4 className="mt-2 text-lg font-black text-slate-900">Recovery Database</h4>
+                        <p className="mt-2 text-xs leading-5 text-slate-600">Pulihkan sistem dari file backup SQL yang valid.</p>
+
+                        <label className="mt-4 block rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-center text-xs text-slate-600">
+                            Pilih file backup (.sql/.txt)
+                            <input
+                                type="file"
+                                accept=".sql,.txt"
+                                className="mt-2 block w-full text-xs"
+                                disabled={isBusy}
+                                onChange={(event) => restoreForm.setData('backup_file', event.target.files?.[0] || null)}
+                            />
+                        </label>
+                        <p className="mt-2 text-[11px] text-slate-500">
+                            {restoreForm.data.backup_file ? `File terpilih: ${restoreForm.data.backup_file.name}` : 'Belum ada file yang dipilih.'}
+                        </p>
+                        {errors?.backup_file && <p className="mt-2 text-xs font-semibold text-rose-600">{errors.backup_file}</p>}
+
+                        <button
+                            className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-2.5 text-xs font-extrabold uppercase tracking-[0.12em] text-white shadow-[0_10px_24px_-14px_rgba(5,150,105,0.9)] transition hover:brightness-105 disabled:opacity-60"
+                            disabled={isBusy || !restoreForm.data.backup_file}
+                            onClick={() => restoreForm.post(route('settings.database.restore'), { preserveScroll: true })}
+                        >
+                            {restoreForm.processing ? 'Menjalankan Restore...' : 'Restore Backup'}
+                        </button>
+                    </article>
+
+                    <article className="rounded-3xl border border-rose-200 bg-gradient-to-b from-rose-50 to-white p-5 shadow-sm">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-rose-700">Danger Zone</p>
+                        <h4 className="mt-2 text-lg font-black text-rose-800">Reset Data</h4>
+                        <p className="mt-2 text-xs leading-5 text-rose-700">Hapus seluruh data aplikasi kecuali akun super-admin.</p>
+
+                        <input
+                            type="text"
+                            placeholder="Ketik: RESET DATABASE"
+                            className="mt-4 w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs disabled:opacity-60"
+                            disabled={isBusy}
+                            value={resetForm.data.confirmation}
+                            onChange={(event) => resetForm.setData('confirmation', event.target.value)}
+                        />
+                        {errors?.confirmation && <p className="mt-2 text-xs font-semibold text-rose-700">{errors.confirmation}</p>}
+
+                        <button
+                            className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-rose-600 px-3 py-2.5 text-xs font-extrabold uppercase tracking-[0.12em] text-white transition hover:bg-rose-700 disabled:opacity-60"
+                            disabled={isBusy}
+                            onClick={() => openConfirm('reset')}
+                        >
+                            {resetForm.processing ? 'Mereset Database...' : 'Reset Database'}
+                        </button>
+                    </article>
+                </section>
+
+                <section className="grid gap-4 xl:grid-cols-2">
+                    <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Backup Files</p>
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">{backups.length} file</span>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                            {backups.length === 0 && <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-xs text-slate-500">Belum ada file backup.</p>}
+                            {backups.map((backup) => (
+                                <div key={backup.filename} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3">
+                                    <div className="min-w-0">
+                                        <p className="truncate text-xs font-semibold text-slate-800">{backup.filename}</p>
+                                        <p className="text-[11px] text-slate-500">{backup.last_modified_at} | {formatKb(backup.size)}</p>
+                                    </div>
+                                    <div className="ml-2 flex items-center gap-2">
+                                        <a className="rounded-lg bg-sky-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-sky-500" href={route('settings.database.download', backup.filename)}>Download</a>
+                                        <button
+                                            className="rounded-lg bg-rose-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-rose-500 disabled:opacity-60"
+                                            disabled={isBusy}
+                                            onClick={() => setDeleteTarget(backup.filename)}
+                                        >
+                                            Hapus
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </article>
+
+                    <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Maintenance Logs</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <a
+                                    className="rounded-lg bg-slate-800 px-2.5 py-1.5 text-[11px] font-bold text-white"
+                                    href={route('settings.database.logs.export', {
+                                        log_action: logFilters.log_action || 'all',
+                                        log_status: logFilters.log_status || 'all',
+                                        limit: logFilters.log_limit || 20,
+                                    })}
+                                >
+                                    Export CSV
+                                </a>
+                                <select
+                                    className="rounded-lg border border-slate-200 px-2 py-1.5 text-[11px]"
+                                    value={logFilters.log_action || 'all'}
+                                    onChange={(event) => router.get(route('settings.database.index'), { log_action: event.target.value, log_status: logFilters.log_status || 'all', log_limit: logFilters.log_limit || 20 }, { preserveState: true, preserveScroll: true })}
+                                >
+                                    <option value="all">Semua Aksi</option>
+                                    <option value="backup">Backup</option>
+                                    <option value="restore">Restore</option>
+                                    <option value="reset">Reset</option>
+                                    <option value="download">Download</option>
+                                    <option value="delete-backup">Delete Backup</option>
+                                    <option value="purge-backup">Purge Backup</option>
+                                    <option value="purge-backup-scheduled">Purge Scheduled</option>
+                                </select>
+                                <select
+                                    className="rounded-lg border border-slate-200 px-2 py-1.5 text-[11px]"
+                                    value={logFilters.log_status || 'all'}
+                                    onChange={(event) => router.get(route('settings.database.index'), { log_action: logFilters.log_action || 'all', log_status: event.target.value, log_limit: logFilters.log_limit || 20 }, { preserveState: true, preserveScroll: true })}
+                                >
+                                    <option value="all">Semua Status</option>
+                                    <option value="success">Success</option>
+                                    <option value="failed">Failed</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="mt-3 max-h-[360px] space-y-2 overflow-auto pr-1">
+                            {maintenanceLogs.length === 0 && <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-xs text-slate-500">Belum ada log maintenance.</p>}
+                            {maintenanceLogs.map((log) => (
+                                <div key={log.id} className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2.5">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-xs font-semibold text-slate-800">{log.action.toUpperCase()} | {log.status}</p>
+                                        <p className="text-[11px] text-slate-500">{log.executed_at || '-'}</p>
+                                    </div>
+                                    <p className="mt-1 text-[11px] text-slate-600">{log.actor?.name || 'System'}{log.filename ? ` | ${log.filename}` : ''}</p>
+                                    {log.message && <p className="mt-1 text-[11px] text-slate-500">{log.message}</p>}
+                                </div>
+                            ))}
+                        </div>
+                    </article>
+                </section>
+            </div>
+
+            <Modal show={Boolean(deleteTarget)} onClose={() => !isBusy && setDeleteTarget(null)} maxWidth="md">
+                <div className="relative overflow-hidden rounded-3xl border border-rose-200/30 bg-[linear-gradient(150deg,rgba(30,41,59,0.95),rgba(15,23,42,0.94))] p-6 text-slate-100 shadow-2xl">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-300">Konfirmasi Hapus</p>
+                    <h4 className="mt-2 text-xl font-black text-white">Hapus File Backup?</h4>
+                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                        Anda akan menghapus file:
+                        <span className="mt-1 block rounded-xl border border-rose-200/30 bg-rose-500/10 px-3 py-2 font-mono text-xs text-rose-200">
+                            {deleteTarget}
+                        </span>
+                    </p>
+                    <p className="mt-3 text-xs text-slate-400">Tindakan ini tidak dapat dibatalkan.</p>
+
+                    <div className="mt-5 grid grid-cols-2 gap-2">
+                        <button
+                            className="rounded-xl border border-slate-500/40 bg-slate-700/40 px-3 py-2 text-xs font-bold text-slate-100 transition hover:bg-slate-600/50 disabled:opacity-60"
+                            disabled={isBusy}
+                            onClick={() => setDeleteTarget(null)}
+                        >
+                            Batal
+                        </button>
+                        <button
+                            className="rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 px-3 py-2 text-xs font-extrabold uppercase tracking-[0.1em] text-white shadow-[0_12px_24px_-14px_rgba(244,63,94,0.95)] transition hover:brightness-105 disabled:opacity-60"
+                            disabled={isBusy}
+                            onClick={() => {
+                                router.delete(route('settings.database.delete', deleteTarget), {
+                                    preserveScroll: true,
+                                    onFinish: () => setDeleteTarget(null),
+                                });
+                            }}
+                        >
+                            Ya, Hapus
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal show={Boolean(confirmAction)} onClose={closeConfirm} maxWidth="md">
+                <div className="bg-white p-6">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Konfirmasi Maintenance</p>
+                    <h4 className="mt-2 text-xl font-black text-slate-900">
+                        {confirmAction === 'reset' ? 'Reset Semua Data?' : 'Purge Backup Lama?'}
+                    </h4>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                        {confirmAction === 'reset'
+                            ? 'Aksi ini menghapus seluruh data aplikasi kecuali akun super-admin. Pastikan Anda sudah membuat backup terbaru dan maintenance window sedang aktif.'
+                            : `Backup SQL yang lebih tua dari ${purgeForm.data.older_than_days} hari akan dihapus permanen dari storage lokal.`}
+                    </p>
+                    {confirmAction === 'reset' && (
+                        <p className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+                            Validasi teks RESET DATABASE tetap wajib benar sebelum aksi dijalankan.
+                        </p>
+                    )}
+
+                    <div className="mt-6 flex justify-end gap-2">
+                        <button
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                            disabled={isBusy}
+                            onClick={closeConfirm}
+                        >
+                            Batal
+                        </button>
+                        <button
+                            className={`rounded-xl px-4 py-2 text-xs font-extrabold uppercase tracking-[0.1em] text-white transition disabled:opacity-60 ${
+                                confirmAction === 'reset' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-slate-800 hover:bg-slate-700'
+                            }`}
+                            disabled={isBusy}
+                            onClick={handleConfirmAction}
+                        >
+                            {confirmAction === 'reset'
+                                ? (resetForm.processing ? 'Mereset Database...' : 'Ya, Reset')
+                                : (purgeForm.processing ? 'Menghapus Backup...' : 'Ya, Purge')}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+        </AuthenticatedLayout>
+    );
+}
