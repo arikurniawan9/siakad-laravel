@@ -20,12 +20,18 @@ class TarifKeuangan extends Model
         'nominal',
         'keterangan',
         'is_active',
+        'can_installment',
+        'installment_max',
+        'installment_default',
     ];
 
     protected $casts = [
         'semester_akademik' => 'integer',
         'nominal' => 'decimal:2',
         'is_active' => 'boolean',
+        'can_installment' => 'boolean',
+        'installment_max' => 'integer',
+        'installment_default' => 'integer',
     ];
 
     public function jenisTagihan(): BelongsTo
@@ -33,4 +39,3 @@ class TarifKeuangan extends Model
         return $this->belongsTo(JenisTagihan::class, 'jenis_tagihan_id');
     }
 }
-

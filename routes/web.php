@@ -7,6 +7,7 @@ use App\Http\Controllers\DosenRelasiController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\JenisPembayaranController;
 use App\Http\Controllers\KeuanganController;
+use App\Http\Controllers\KeuanganSetupController;
 use App\Http\Controllers\KrsController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\MahasiswaController;
@@ -124,6 +125,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/keuangan/jenis-pembayaran', [JenisPembayaranController::class, 'store'])->middleware('action:action.create')->name('keuangan.jenis-pembayaran.store');
         Route::put('/keuangan/jenis-pembayaran/{jenisPembayaran}', [JenisPembayaranController::class, 'update'])->middleware('action:action.update')->name('keuangan.jenis-pembayaran.update');
         Route::delete('/keuangan/jenis-pembayaran/{jenisPembayaran}', [JenisPembayaranController::class, 'destroy'])->middleware('action:action.delete')->name('keuangan.jenis-pembayaran.destroy');
+
+        Route::middleware(['role:super-admin,admin'])->group(function () {
+            Route::get('/keuangan/setup-tarif', [KeuanganSetupController::class, 'index'])->name('keuangan.setup.index');
+            Route::post('/keuangan/setup-tarif/jenis-tagihan', [KeuanganSetupController::class, 'storeJenisTagihan'])->middleware('action:action.create')->name('keuangan.setup.jenis-tagihan.store');
+            Route::put('/keuangan/setup-tarif/jenis-tagihan/{jenisTagihan}', [KeuanganSetupController::class, 'updateJenisTagihan'])->middleware('action:action.update')->name('keuangan.setup.jenis-tagihan.update');
+            Route::delete('/keuangan/setup-tarif/jenis-tagihan/{jenisTagihan}', [KeuanganSetupController::class, 'destroyJenisTagihan'])->middleware('action:action.delete')->name('keuangan.setup.jenis-tagihan.destroy');
+
+            Route::post('/keuangan/setup-tarif/tarif', [KeuanganSetupController::class, 'storeTarif'])->middleware('action:action.create')->name('keuangan.setup.tarif.store');
+            Route::delete('/keuangan/setup-tarif/tarif/{tarifKeuangan}', [KeuanganSetupController::class, 'destroyTarif'])->middleware('action:action.delete')->name('keuangan.setup.tarif.destroy');
+        });
     });
 
     Route::middleware(['role:super-admin,admin,operator,baak'])->group(function () {
@@ -188,6 +199,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/settings/user-access/{user}/password', [UserAccessController::class, 'resetPassword'])->name('settings.user-access.password');
         Route::post('/settings/database/backup', [SettingsController::class, 'backupDatabase'])->name('settings.database.backup');
         Route::post('/settings/database/restore', [SettingsController::class, 'restoreDatabase'])->name('settings.database.restore');
+        Route::post('/settings/database/restore/{filename}', [SettingsController::class, 'restoreDatabaseFromStoredBackup'])->name('settings.database.restoreStored');
         Route::post('/settings/database/reset', [SettingsController::class, 'resetDatabase'])->name('settings.database.reset');
         Route::get('/settings/database/backup/{filename}', [SettingsController::class, 'downloadBackup'])->name('settings.database.download');
         Route::delete('/settings/database/backup/{filename}', [SettingsController::class, 'deleteBackup'])->name('settings.database.delete');

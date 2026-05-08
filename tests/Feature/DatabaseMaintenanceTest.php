@@ -47,6 +47,24 @@ class DatabaseMaintenanceTest extends TestCase
         $this->assertTrue(DatabaseMaintenanceLog::query()->where('action', 'backup')->where('status', 'success')->exists());
     }
 
+    public function test_super_admin_can_create_partial_database_backup(): void
+    {
+        Storage::fake('local');
+        $user = $this->makeSuperAdmin();
+
+        $this->actingAs($user)
+            ->post('/settings/database/backup', [
+                'mode' => 'custom',
+                'label' => 'users-only',
+                'tables' => ['users', 'roles', 'permissions'],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $files = Storage::disk('local')->files('backups');
+        $this->assertNotEmpty($files);
+        $this->assertTrue(collect($files)->contains(fn ($f) => str_contains($f, 'partial-')));
+    }
+
     public function test_reset_database_preserves_only_super_admin_user_data(): void
     {
         $superAdmin = $this->makeSuperAdmin();
@@ -79,6 +97,27 @@ class DatabaseMaintenanceTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertTrue(DatabaseMaintenanceLog::query()->where('action', 'restore')->where('status', 'success')->exists());
+    }
+
+    public function test_restore_database_ignores_transaction_statements_in_dump(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+
+        $sqlFile = UploadedFile::fake()->createWithContent('dummy.sql', "START TRANSACTION;\nCOMMIT;\n");
+        $this->actingAs($superAdmin)
+            ->post('/settings/database/restore', ['backup_file' => $sqlFile])
+            ->assertSessionHasNoErrors();
+    }
+
+    public function test_super_admin_can_restore_from_stored_backup_filename(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+
+        Storage::disk('local')->put('backups/sample.sql', "SET FOREIGN_KEY_CHECKS=1;\n");
+
+        $this->actingAs($superAdmin)
+            ->post('/settings/database/restore/sample.sql')
+            ->assertSessionHasNoErrors();
     }
 
     public function test_super_admin_can_download_backup_file(): void

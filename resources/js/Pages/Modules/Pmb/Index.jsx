@@ -91,14 +91,14 @@ function VerificationCard({ item, onApprove, onReject, onDetail }) {
                         {label[item.status_pembayaran] || item.status_pembayaran}
                     </span>
                     <p className="text-xs text-slate-500">{item.created_at ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(item.created_at)) : '-'}</p>
-                    <div className="flex flex-wrap gap-2">
-                        <button type="button" className="btn-outline" onClick={() => onDetail(item)}>
+                    <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto">
+                        <button type="button" className="btn-outline w-full" onClick={() => onDetail(item)}>
                             Detail
                         </button>
-                        <button type="button" className="btn-primary" onClick={() => onApprove(item)}>
+                        <button type="button" className="btn-primary w-full" onClick={() => onApprove(item)}>
                             Verifikasi
                         </button>
-                        <button type="button" className="btn-outline" onClick={() => onReject(item)}>
+                        <button type="button" className="btn-outline w-full" onClick={() => onReject(item)}>
                             Tolak
                         </button>
                     </div>
@@ -226,12 +226,12 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
     };
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-2xl font-extrabold text-slate-900">PMB - Admission Center</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900 sm:text-2xl">PMB - Admission Center</h2>}>
             <Head title="PMB" />
 
             {toast?.message && (
                 <div
-                    className={`fixed right-4 top-4 z-50 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ${
+                    className={`fixed inset-x-4 top-4 z-50 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg sm:inset-x-auto sm:right-4 ${
                         toast.type === 'error' ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
                     }`}
                 >
@@ -251,7 +251,7 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {stats.map((item) => (
-                    <article key={item.label} className="panel p-4">
+                    <article key={item.label} className="panel p-4 sm:p-5">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
                         <p className="mt-1 text-2xl font-extrabold text-slate-900">{item.value}</p>
                     </article>
@@ -273,7 +273,7 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
                     <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <div>
                             <label className="label">Gelombang</label>
-                            <input className="field" value={form.data.gelombang} onChange={(e) => form.setData('gelombang', e.target.value)} />
+                            <input className="field" value={form.data.gelombang} onChange={(e) => form.setData('gelombang', e.target.value)} placeholder="Gelombang 1" />
                         </div>
                         <div>
                             <label className="label">Program Studi</label>
@@ -284,35 +284,38 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
                         </div>
                         <div>
                             <label className="label">Nama Lengkap</label>
-                            <input className="field" value={form.data.nama_lengkap} onChange={(e) => form.setData('nama_lengkap', e.target.value)} />
+                            <input className="field" value={form.data.nama_lengkap} onChange={(e) => form.setData('nama_lengkap', e.target.value)} autoComplete="name" placeholder="Nama sesuai identitas" />
                         </div>
                         <div>
                             <label className="label">Email</label>
-                            <input className="field" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} />
+                            <input type="email" className="field" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} autoComplete="email" placeholder="nama@email.com" />
                         </div>
                         <div>
                             <label className="label">No. HP</label>
-                            <input className="field" value={form.data.phone} onChange={(e) => form.setData('phone', e.target.value)} />
+                            <input type="tel" className="field" value={form.data.phone} onChange={(e) => form.setData('phone', e.target.value)} autoComplete="tel" placeholder="08xxxxxxxxxx" />
                         </div>
                         <div>
                             <label className="label">Asal Sekolah</label>
-                            <input className="field" value={form.data.asal_sekolah} onChange={(e) => form.setData('asal_sekolah', e.target.value)} />
+                            <input className="field" value={form.data.asal_sekolah} onChange={(e) => form.setData('asal_sekolah', e.target.value)} placeholder="SMA/SMK/MA ..." />
                         </div>
                         <div>
                             <label className="label">Dokumen KTP</label>
-                            <input type="file" className="field" onChange={(e) => form.setData('dokumen_ktp', e.target.files?.[0] || null)} />
+                            <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_ktp', e.target.files?.[0] || null)} />
+                            <p className="mt-1 text-[11px] text-slate-500">Format disarankan: PDF / JPG / PNG.</p>
                         </div>
                         <div>
                             <label className="label">Dokumen Ijazah</label>
-                            <input type="file" className="field" onChange={(e) => form.setData('dokumen_ijazah', e.target.files?.[0] || null)} />
+                            <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_ijazah', e.target.files?.[0] || null)} />
+                            <p className="mt-1 text-[11px] text-slate-500">Format disarankan: PDF / JPG / PNG.</p>
                         </div>
                         <div className="md:col-span-2">
                             <label className="label">Pas Foto</label>
-                            <input type="file" className="field" onChange={(e) => form.setData('dokumen_foto', e.target.files?.[0] || null)} />
+                            <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_foto', e.target.files?.[0] || null)} />
+                            <p className="mt-1 text-[11px] text-slate-500">Gunakan foto formal dengan latar yang jelas.</p>
                         </div>
                     </div>
 
-                    <button type="submit" className="btn-primary mt-5" disabled={form.processing}>
+                    <button type="submit" className="btn-primary mt-5 w-full md:w-auto" disabled={form.processing}>
                         {form.processing ? 'Menyimpan...' : 'Simpan Pendaftaran'}
                     </button>
                 </form>
@@ -371,16 +374,16 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
 
                     <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         {verificationStats.map((item) => (
-                            <article key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <article key={item.label} className="panel-soft p-4 sm:p-5">
                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
                                 <p className="mt-1 text-2xl font-extrabold text-slate-900">{item.value}</p>
                             </article>
                         ))}
                     </div>
 
-                    <div className="mt-4 grid gap-2 lg:grid-cols-[minmax(0,1fr)_180px_180px_140px_auto_auto]">
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
                         <input
-                            className="form-input"
+                            className="form-input sm:col-span-2 lg:col-span-2"
                             placeholder="Cari nomor, nama, email, atau prodi"
                             value={verificationSearch}
                             onChange={(e) => setVerificationSearch(e.target.value)}
@@ -404,10 +407,10 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
                             <option value="50">50 / halaman</option>
                             <option value="100">100 / halaman</option>
                         </select>
-                        <button type="button" className="btn-primary" onClick={() => applyVerificationFilters()}>
+                        <button type="button" className="btn-primary w-full" onClick={() => applyVerificationFilters()}>
                             Terapkan
                         </button>
-                        <button type="button" className="btn-outline" onClick={resetVerificationFilters}>
+                        <button type="button" className="btn-outline w-full" onClick={resetVerificationFilters}>
                             Reset
                         </button>
                     </div>

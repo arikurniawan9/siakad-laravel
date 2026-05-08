@@ -35,7 +35,13 @@ $keuangan = [
     ['label' => 'Tagihan', 'route' => 'keuangan.tagihan'],
     ['label' => 'Transaksi', 'route' => 'keuangan.transaksi'],
     ['label' => 'Jenis Pembayaran', 'route' => 'keuangan.jenis-pembayaran'],
+    ['label' => 'Setup Tarif', 'route' => 'keuangan.setup.index'],
 ];
+
+$keuanganSuperadmin = array_merge($keuangan, [
+    ['label' => 'Closing / Period Lock', 'route' => 'settings.finance-period-locks.index'],
+    ['label' => 'Rekonsiliasi Gateway', 'route' => 'settings.finance-reconciliation.index'],
+]);
 
 $laporan = [
     ['label' => 'Laporan', 'route' => 'laporan.index'],
@@ -55,7 +61,7 @@ return [
     'super-admin' => array_merge($dashboard, [
         ['group' => 'Master Akademik', 'items' => $masterAkademik],
         ['group' => 'Perkuliahan', 'items' => $perkuliahan],
-        ['group' => 'Keuangan', 'items' => $keuangan],
+        ['group' => 'Keuangan', 'items' => $keuanganSuperadmin],
         ['group' => 'PMB', 'items' => $pmb],
         ['group' => 'Laporan', 'items' => $laporan],
         ['group' => 'Sistem', 'items' => array_merge($sistem, $superAdminExtras)],

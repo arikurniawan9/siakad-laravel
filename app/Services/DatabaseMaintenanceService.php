@@ -10,24 +10,30 @@ use RuntimeException;
 
 class DatabaseMaintenanceService
 {
-    public function backup(): array
+    public function backup(?array $tables = null, ?string $label = null): array
     {
         $this->ensureMysqlConnection();
 
-        $filename = 'db-backup-'.now()->format('Ymd-His').'.sql';
+        $safeLabel = $label ? preg_replace('/[^A-Za-z0-9._-]+/', '-', trim($label)) : null;
+        $safeLabel = $safeLabel ? trim((string) $safeLabel, '-') : null;
+
+        $isPartial = is_array($tables) && count($tables) > 0;
+        $filename = 'db-backup-'.($isPartial ? 'partial-' : '').now()->format('Ymd-His').($safeLabel ? '-'.$safeLabel : '').'.sql';
         $relativePath = 'backups/'.$filename;
 
-        $sql = $this->buildSqlDump();
+        $tables = $this->normalizeTables($tables);
+        $sql = $this->buildSqlDump($tables);
         Storage::disk('local')->put($relativePath, $sql);
 
         return [
             'path' => storage_path('app/'.$relativePath),
             'relative_path' => $relativePath,
             'filename' => $filename,
+            'tables' => $tables,
         ];
     }
 
-    public function restore(UploadedFile $file): void
+    public function restore(UploadedFile $file): array
     {
         $this->ensureMysqlConnection();
 
@@ -36,23 +42,20 @@ class DatabaseMaintenanceService
             throw new RuntimeException('File backup kosong.');
         }
 
-        DB::beginTransaction();
+        return $this->restoreSqlString($sql);
+    }
 
-        try {
-            DB::unprepared('SET FOREIGN_KEY_CHECKS=0');
+    public function restoreFromStoredBackup(string $filename): array
+    {
+        $this->ensureMysqlConnection();
 
-            foreach ($this->splitSqlStatements($sql) as $statement) {
-                DB::unprepared($statement);
-            }
-
-            DB::commit();
-        } catch (\Throwable $exception) {
-            DB::rollBack();
-
-            throw $exception;
-        } finally {
-            DB::unprepared('SET FOREIGN_KEY_CHECKS=1');
+        $path = $this->downloadPath($filename);
+        $sql = (string) Storage::disk('local')->get($path);
+        if (trim($sql) === '') {
+            throw new RuntimeException('File backup kosong.');
         }
+
+        return $this->restoreSqlString($sql);
     }
 
     public function resetExceptSuperAdmin(): void
@@ -186,19 +189,54 @@ class DatabaseMaintenanceService
         return $deleted;
     }
 
-    private function buildSqlDump(): string
+    public function listTables(): array
+    {
+        $this->ensureMysqlConnection();
+
+        return $this->allBaseTables()->values()->all();
+    }
+
+    private function allBaseTables()
+    {
+        return collect(DB::select('SHOW FULL TABLES WHERE Table_type = "BASE TABLE"'))
+            ->map(fn ($row) => array_values((array) $row)[0])
+            ->filter()
+            ->values();
+    }
+
+    private function normalizeTables(?array $tables): array
+    {
+        $all = $this->allBaseTables();
+
+        if (! $tables) {
+            return $all->all();
+        }
+
+        $requested = collect($tables)
+            ->map(fn ($t) => trim((string) $t))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $allowed = $all->flip();
+
+        return $requested
+            ->filter(fn ($t) => $allowed->has($t))
+            ->values()
+            ->all();
+    }
+
+    private function buildSqlDump(array $tables): string
     {
         $dbName = DB::connection()->getDatabaseName();
-        $tables = collect(DB::select('SHOW FULL TABLES WHERE Table_type = "BASE TABLE"'))
-            ->map(fn ($row) => array_values((array) $row)[0])
-            ->values();
+        $tables = collect($tables)->values();
 
         $lines = [];
         $lines[] = '-- SIAKAD DB Backup';
         $lines[] = '-- Generated at '.now()->toDateTimeString();
+        $lines[] = '-- Tables: '.($tables->isEmpty() ? '-' : $tables->implode(', '));
         $lines[] = 'SET FOREIGN_KEY_CHECKS=0;';
         $lines[] = 'SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";';
-        $lines[] = 'START TRANSACTION;';
         $lines[] = '';
 
         foreach ($tables as $table) {
@@ -242,7 +280,6 @@ class DatabaseMaintenanceService
             $lines[] = '';
         }
 
-        $lines[] = 'COMMIT;';
         $lines[] = 'SET FOREIGN_KEY_CHECKS=1;';
         $lines[] = '';
 
@@ -255,9 +292,46 @@ class DatabaseMaintenanceService
 
         return collect($statements)
             ->map(fn ($stmt) => trim($stmt))
+            ->filter(function (string $stmt) {
+                $upper = strtoupper($stmt);
+
+                // Restores should not depend on transaction statements embedded in the dump.
+                if (in_array($upper, ['START TRANSACTION', 'COMMIT', 'ROLLBACK'], true)) {
+                    return false;
+                }
+
+                // We explicitly manage FOREIGN_KEY_CHECKS in code.
+                if (str_starts_with($upper, 'SET FOREIGN_KEY_CHECKS=')) {
+                    return false;
+                }
+
+                return true;
+            })
             ->filter()
             ->values()
             ->all();
+    }
+
+    private function restoreSqlString(string $sql): array
+    {
+        $startedAt = microtime(true);
+        $executed = 0;
+
+        try {
+            DB::unprepared('SET FOREIGN_KEY_CHECKS=0');
+
+            foreach ($this->splitSqlStatements($sql) as $statement) {
+                DB::unprepared($statement);
+                $executed++;
+            }
+        } finally {
+            DB::unprepared('SET FOREIGN_KEY_CHECKS=1');
+        }
+
+        return [
+            'statements' => $executed,
+            'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        ];
     }
 
     private function ensureMysqlConnection(): void

@@ -2,14 +2,14 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ModuleHero from '@/Components/ModuleHero';
 import ConfirmationModal from '@/Components/ConfirmationModal';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 function formatDateTime(value) {
     if (!value) return '-';
     return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 }
 
-export default function Page({ auth, locks = [], filters = null }) {
+export default function Page({ auth, locks = [], filters = null, tahunAkademiks = [] }) {
     const { menu, flash } = usePage().props;
     const [search, setSearch] = useState(filters?.search || '');
     const [limit, setLimit] = useState(String(filters?.limit || 50));
@@ -27,6 +27,16 @@ export default function Page({ auth, locks = [], filters = null }) {
         const yearLocks = locks.length - semesterLocks;
         return { total: locks.length, yearLocks, semesterLocks };
     }, [locks]);
+
+    useEffect(() => {
+        if (form.data.tahun_akademik) return;
+        const active = tahunAkademiks.find((t) => t.is_active);
+        if (active?.kode) {
+            form.setData('tahun_akademik', active.kode);
+        } else if (tahunAkademiks[0]?.kode) {
+            form.setData('tahun_akademik', tahunAkademiks[0].kode);
+        }
+    }, [tahunAkademiks]);
 
     const applyFilters = () => {
         router.get(
@@ -93,12 +103,14 @@ export default function Page({ auth, locks = [], filters = null }) {
                     {flash?.success && <p className="mt-2 rounded-lg bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-700">{flash.success}</p>}
 
                     <form onSubmit={submit} className="mt-3 space-y-2">
-                        <input
-                            className="form-input"
-                            value={form.data.tahun_akademik}
-                            onChange={(e) => form.setData('tahun_akademik', e.target.value)}
-                            placeholder="Tahun akademik (contoh: 2025/2026)"
-                        />
+                        <select className="form-input" value={form.data.tahun_akademik} onChange={(e) => form.setData('tahun_akademik', e.target.value)}>
+                            <option value="">Pilih Tahun Akademik</option>
+                            {tahunAkademiks.map((t) => (
+                                <option key={t.id} value={t.kode}>
+                                    {t.kode} — {t.nama}{t.is_active ? ' (Aktif)' : ''}
+                                </option>
+                            ))}
+                        </select>
                         <input
                             className="form-input"
                             type="number"
@@ -196,4 +208,3 @@ export default function Page({ auth, locks = [], filters = null }) {
         </AuthenticatedLayout>
     );
 }
-

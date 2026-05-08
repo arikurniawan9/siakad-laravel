@@ -57,9 +57,23 @@ function RowActions({ onEdit, onDelete, kode }) {
     );
 }
 
+function EditActions({ onCancel, onSave, processing }) {
+    return (
+        <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className="btn-outline px-3 py-2 text-xs" onClick={onCancel} disabled={processing}>
+                Batal
+            </button>
+            <button type="button" className="btn-primary px-3 py-2 text-xs" onClick={onSave} disabled={processing}>
+                {processing ? 'Menyimpan...' : 'Simpan'}
+            </button>
+        </div>
+    );
+}
+
 export default function Page({ auth, tabs = [], filters = null, jurusans = [], prodis = { data: [], meta: null, links: [] } }) {
     const { flash } = usePage().props;
-    const [editingId, setEditingId] = useState(null);
+    const [editingTarget, setEditingTarget] = useState(null);
+    const [showAdvancedEdit, setShowAdvancedEdit] = useState(false);
     const [search, setSearch] = useState(filters?.search || '');
     const [perPage, setPerPage] = useState(String(filters?.per_page || 10));
     const [toast, setToast] = useState(null);
@@ -70,6 +84,13 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
     const data = prodis.data || [];
     const meta = prodis.meta || {};
     const links = prodis.links || [];
+
+    const jenjangOptions = [
+        { value: 'D3', label: 'D3 (Diploma 3)' },
+        { value: 'S1', label: 'S1 (Sarjana)' },
+        { value: 'S2', label: 'S2 (Magister)' },
+        { value: 'S3', label: 'S3 (Doktor)' },
+    ];
 
     const form = useForm({ jurusan_id: '', kode: '', nama: '', jenjang: 'S1', semester_total: 8, sks_lulus: 144 });
     const edit = useForm({ jurusan_id: '', kode: '', nama: '', jenjang: 'S1', semester_total: 8, sks_lulus: 144 });
@@ -131,7 +152,8 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
     };
 
     const startEdit = (item) => {
-        setEditingId(item.id);
+        setEditingTarget(item);
+        setShowAdvancedEdit(false);
         edit.setData({
             jurusan_id: item.jurusan_id || '',
             kode: item.kode || '',
@@ -143,8 +165,14 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
     };
 
     const cancelEdit = () => {
-        setEditingId(null);
+        setEditingTarget(null);
+        setShowAdvancedEdit(false);
         edit.reset();
+    };
+
+    const submitEdit = () => {
+        if (!editingTarget?.id) return;
+        edit.put(route('akademik.prodi.update', editingTarget.id), { preserveScroll: true, onSuccess: cancelEdit });
     };
 
     return (
@@ -165,6 +193,7 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
                             <h3 className="mt-1 text-sm font-bold text-slate-900">Tambah Prodi</h3>
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Jurusan</label>
                             <select className="form-input" value={form.data.jurusan_id} onChange={(e) => form.setData('jurusan_id', e.target.value)}>
                                 <option value="">Pilih Jurusan</option>
                                 {jurusans.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}
@@ -172,25 +201,53 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
                             <FieldError message={form.errors.jurusan_id} />
                         </div>
                         <div>
-                            <input className="form-input" placeholder="Kode" value={form.data.kode} onChange={(e) => form.setData('kode', e.target.value)} />
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Kode Prodi</label>
+                            <input className="form-input" placeholder="Contoh: TI" value={form.data.kode} onChange={(e) => form.setData('kode', e.target.value)} />
                             <FieldError message={form.errors.kode} />
                         </div>
                         <div>
-                            <input className="form-input" placeholder="Nama" value={form.data.nama} onChange={(e) => form.setData('nama', e.target.value)} />
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Nama Prodi</label>
+                            <input className="form-input" placeholder="Contoh: Teknik Informatika" value={form.data.nama} onChange={(e) => form.setData('nama', e.target.value)} />
                             <FieldError message={form.errors.nama} />
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div>
-                                <input className="form-input" placeholder="Jenjang" value={form.data.jenjang} onChange={(e) => form.setData('jenjang', e.target.value)} />
+                                <label className="mb-1 block text-xs font-bold text-slate-700">Jenjang</label>
+                                <select className="form-input" value={form.data.jenjang} onChange={(e) => form.setData('jenjang', e.target.value)}>
+                                    {jenjangOptions.map((opt) => (
+                                        <option key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                        </option>
+                                    ))}
+                                </select>
                                 <FieldError message={form.errors.jenjang} />
                             </div>
                             <div>
-                                <input type="number" className="form-input" placeholder="Semester Total" value={form.data.semester_total} onChange={(e) => form.setData('semester_total', e.target.value)} />
+                                <label className="mb-1 block text-xs font-bold text-slate-700">Total Semester</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="14"
+                                    className="form-input"
+                                    placeholder="Contoh: 8"
+                                    value={form.data.semester_total}
+                                    onChange={(e) => form.setData('semester_total', e.target.value)}
+                                />
+                                <p className="mt-1 text-[11px] text-slate-500">S1 umumnya 8 semester.</p>
                                 <FieldError message={form.errors.semester_total} />
                             </div>
                         </div>
                         <div>
-                            <input type="number" className="form-input" placeholder="SKS Lulus" value={form.data.sks_lulus} onChange={(e) => form.setData('sks_lulus', e.target.value)} />
+                            <label className="mb-1 block text-xs font-bold text-slate-700">SKS Lulus</label>
+                            <input
+                                type="number"
+                                min="0"
+                                className="form-input"
+                                placeholder="Contoh: 144"
+                                value={form.data.sks_lulus}
+                                onChange={(e) => form.setData('sks_lulus', e.target.value)}
+                            />
+                            <p className="mt-1 text-[11px] text-slate-500">S1 umumnya 144 SKS (sesuaikan kebijakan kampus).</p>
                             <FieldError message={form.errors.sks_lulus} />
                         </div>
                         <button className="btn-primary w-full" type="submit" disabled={form.processing}>
@@ -255,50 +312,81 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
                     <div className="mt-4 space-y-3 md:hidden">
                         {data.length ? data.map((item) => (
                             <Fragment key={item.id}>
-                                <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{item.kode}</p>
-                                    <h4 className="mt-1 text-sm font-bold text-slate-900">{item.nama}</h4>
-                                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.jurusan?.nama || '-'} | {item.jenjang} | {item.semester_total} semester | {item.sks_lulus} SKS</p>
-                                    <div className="mt-4">
-                                        <RowActions onEdit={() => startEdit(item)} onDelete={() => confirmDeletion(item)} kode={item.kode} />
-                                    </div>
-                                </article>
-                                {editingId === item.id && (
-                                    <form onSubmit={(e) => { e.preventDefault(); edit.put(route('akademik.prodi.update', item.id), { preserveScroll: true, onSuccess: () => setEditingId(null) }); }} className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4">
-                                        <div>
-                                            <select className="form-input" value={edit.data.jurusan_id} onChange={(e) => edit.setData('jurusan_id', e.target.value)}>
-                                                <option value="">Pilih Jurusan</option>
-                                                {jurusans.map((jurusan) => <option key={jurusan.id} value={jurusan.id}>{jurusan.nama}</option>)}
-                                            </select>
-                                            <FieldError message={edit.errors.jurusan_id} />
-                                        </div>
-                                        <div>
-                                            <input className="form-input" value={edit.data.kode} onChange={(e) => edit.setData('kode', e.target.value)} />
-                                            <FieldError message={edit.errors.kode} />
-                                        </div>
-                                        <div>
-                                            <input className="form-input" value={edit.data.nama} onChange={(e) => edit.setData('nama', e.target.value)} />
-                                            <FieldError message={edit.errors.nama} />
-                                        </div>
-                                        <div className="grid gap-3 sm:grid-cols-2">
+                                {editingTarget?.id === item.id ? (
+                                    <article className="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-500">Quick Edit</p>
+                                        <div className="mt-3 grid gap-3">
                                             <div>
-                                                <input className="form-input" value={edit.data.jenjang} onChange={(e) => edit.setData('jenjang', e.target.value)} />
+                                                <label className="mb-1 block text-xs font-bold text-slate-700">Jurusan</label>
+                                                <select className="form-input" value={edit.data.jurusan_id} onChange={(e) => edit.setData('jurusan_id', e.target.value)}>
+                                                    <option value="">Pilih Jurusan</option>
+                                                    {jurusans.map((row) => (
+                                                        <option key={row.id} value={row.id}>
+                                                            {row.nama}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <FieldError message={edit.errors.jurusan_id} />
+                                            </div>
+                                            <div>
+                                                <label className="mb-1 block text-xs font-bold text-slate-700">Kode Prodi</label>
+                                                <input className="form-input" value={edit.data.kode} onChange={(e) => edit.setData('kode', e.target.value)} />
+                                                <FieldError message={edit.errors.kode} />
+                                            </div>
+                                            <div>
+                                                <label className="mb-1 block text-xs font-bold text-slate-700">Nama Prodi</label>
+                                                <input className="form-input" value={edit.data.nama} onChange={(e) => edit.setData('nama', e.target.value)} />
+                                                <FieldError message={edit.errors.nama} />
+                                            </div>
+                                            <div>
+                                                <label className="mb-1 block text-xs font-bold text-slate-700">Jenjang</label>
+                                                <select className="form-input" value={edit.data.jenjang} onChange={(e) => edit.setData('jenjang', e.target.value)}>
+                                                    {jenjangOptions.map((opt) => (
+                                                        <option key={opt.value} value={opt.value}>
+                                                            {opt.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
                                                 <FieldError message={edit.errors.jenjang} />
                                             </div>
-                                            <div>
-                                                <input type="number" className="form-input" value={edit.data.semester_total} onChange={(e) => edit.setData('semester_total', e.target.value)} />
-                                                <FieldError message={edit.errors.semester_total} />
-                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAdvancedEdit((prev) => !prev)}
+                                                className="inline-flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                                            >
+                                                <span>Pengaturan lanjutan (Semester & SKS)</span>
+                                                <span className="text-slate-500">{showAdvancedEdit ? 'Sembunyikan' : 'Tampilkan'}</span>
+                                            </button>
+
+                                            {showAdvancedEdit && (
+                                                <div className="grid gap-3 sm:grid-cols-2">
+                                                    <div>
+                                                        <label className="mb-1 block text-xs font-bold text-slate-700">Total Semester</label>
+                                                        <input type="number" min="1" max="14" className="form-input" value={edit.data.semester_total} onChange={(e) => edit.setData('semester_total', e.target.value)} />
+                                                        <p className="mt-1 text-[11px] text-slate-500">S1 umumnya 8 semester.</p>
+                                                        <FieldError message={edit.errors.semester_total} />
+                                                    </div>
+                                                    <div>
+                                                        <label className="mb-1 block text-xs font-bold text-slate-700">SKS Lulus</label>
+                                                        <input type="number" min="0" className="form-input" value={edit.data.sks_lulus} onChange={(e) => edit.setData('sks_lulus', e.target.value)} />
+                                                        <p className="mt-1 text-[11px] text-slate-500">S1 umumnya 144 SKS.</p>
+                                                        <FieldError message={edit.errors.sks_lulus} />
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <EditActions onCancel={cancelEdit} onSave={submitEdit} processing={edit.processing} />
                                         </div>
-                                        <div>
-                                            <input type="number" className="form-input" value={edit.data.sks_lulus} onChange={(e) => edit.setData('sks_lulus', e.target.value)} />
-                                            <FieldError message={edit.errors.sks_lulus} />
+                                    </article>
+                                ) : (
+                                    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{item.kode}</p>
+                                        <h4 className="mt-1 text-sm font-bold text-slate-900">{item.nama}</h4>
+                                        <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.jurusan?.nama || '-'} | {item.jenjang} | {item.semester_total} semester | {item.sks_lulus} SKS</p>
+                                        <div className="mt-4">
+                                            <RowActions onEdit={() => startEdit(item)} onDelete={() => confirmDeletion(item)} kode={item.kode} />
                                         </div>
-                                        <div className="flex flex-col gap-2">
-                                            <button className="btn-primary w-full" type="submit" disabled={edit.processing}>Update</button>
-                                            <button type="button" className="btn-outline w-full" onClick={cancelEdit}>Batal</button>
-                                        </div>
-                                    </form>
+                                    </article>
                                 )}
                             </Fragment>
                         )) : <EmptyState title="Belum ada prodi" description="Tambahkan prodi untuk menghubungkan jurusan dan kurikulum." />}
@@ -318,35 +406,89 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
                             <tbody>
                                 {data.length ? data.map((item) => (
                                     <Fragment key={item.id}>
-                                        <tr className="border-t border-slate-100 align-top">
-                                            <td className="px-3 py-3 font-semibold text-slate-700 whitespace-nowrap">{item.kode}</td>
-                                            <td className="px-3 py-3 text-slate-700">{item.nama}</td>
-                                            <td className="px-3 py-3 text-slate-600">{item.jurusan?.nama || '-'}</td>
-                                            <td className="px-3 py-3 text-slate-600">{item.jenjang} | {item.semester_total} semester | {item.sks_lulus} SKS</td>
-                                            <td className="px-3 py-3"><RowActions onEdit={() => startEdit(item)} onDelete={() => confirmDeletion(item)} kode={item.kode} /></td>
-                                        </tr>
-                                        {editingId === item.id && (
-                                            <tr className="border-t border-slate-100 bg-sky-50/60">
-                                                <td colSpan="5" className="px-3 py-4">
-                                                    <form onSubmit={(e) => { e.preventDefault(); edit.put(route('akademik.prodi.update', item.id), { preserveScroll: true, onSuccess: () => setEditingId(null) }); }} className="grid gap-3 lg:grid-cols-2">
-                                                        <div className="lg:col-span-2">
-                                                            <select className="form-input" value={edit.data.jurusan_id} onChange={(e) => edit.setData('jurusan_id', e.target.value)}>
-                                                                <option value="">Pilih Jurusan</option>
-                                                                {jurusans.map((jurusan) => <option key={jurusan.id} value={jurusan.id}>{jurusan.nama}</option>)}
-                                                            </select>
-                                                            <FieldError message={edit.errors.jurusan_id} />
-                                                        </div>
-                                                        <div><input className="form-input" value={edit.data.kode} onChange={(e) => edit.setData('kode', e.target.value)} /><FieldError message={edit.errors.kode} /></div>
-                                                        <div><input className="form-input" value={edit.data.nama} onChange={(e) => edit.setData('nama', e.target.value)} /><FieldError message={edit.errors.nama} /></div>
-                                                        <div><input className="form-input" value={edit.data.jenjang} onChange={(e) => edit.setData('jenjang', e.target.value)} /><FieldError message={edit.errors.jenjang} /></div>
-                                                        <div><input type="number" className="form-input" value={edit.data.semester_total} onChange={(e) => edit.setData('semester_total', e.target.value)} /><FieldError message={edit.errors.semester_total} /></div>
-                                                        <div><input type="number" className="form-input" value={edit.data.sks_lulus} onChange={(e) => edit.setData('sks_lulus', e.target.value)} /><FieldError message={edit.errors.sks_lulus} /></div>
-                                                        <div className="flex flex-col gap-2 sm:flex-row lg:col-span-2">
-                                                            <button className="btn-primary w-full sm:w-auto" type="submit" disabled={edit.processing}>Update</button>
-                                                            <button type="button" className="btn-outline w-full sm:w-auto" onClick={cancelEdit}>Batal</button>
-                                                        </div>
-                                                    </form>
+                                        {editingTarget?.id === item.id ? (
+                                            <tr className="border-t border-slate-100 bg-sky-50/40 align-top">
+                                                <td className="px-3 py-3 align-top">
+                                                    <input className="form-input h-9 text-xs" value={edit.data.kode} onChange={(e) => edit.setData('kode', e.target.value)} />
+                                                    <FieldError message={edit.errors.kode} />
                                                 </td>
+                                                <td className="px-3 py-3 align-top">
+                                                    <input className="form-input h-9 text-xs" value={edit.data.nama} onChange={(e) => edit.setData('nama', e.target.value)} />
+                                                    <FieldError message={edit.errors.nama} />
+                                                </td>
+                                                <td className="px-3 py-3 align-top">
+                                                    <select className="form-input h-9 text-xs" value={edit.data.jurusan_id} onChange={(e) => edit.setData('jurusan_id', e.target.value)}>
+                                                        <option value="">Pilih Jurusan</option>
+                                                        {jurusans.map((row) => (
+                                                            <option key={row.id} value={row.id}>
+                                                                {row.nama}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <FieldError message={edit.errors.jurusan_id} />
+                                                </td>
+                                                <td className="px-3 py-3 align-top">
+                                                    <div className="grid gap-2">
+                                                        <select className="form-input h-9 text-xs" value={edit.data.jenjang} onChange={(e) => edit.setData('jenjang', e.target.value)} title="Jenjang">
+                                                            {jenjangOptions.map((opt) => (
+                                                                <option key={opt.value} value={opt.value}>
+                                                                    {opt.label}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <FieldError message={edit.errors.jenjang} />
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowAdvancedEdit((prev) => !prev)}
+                                                            className="inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                                        >
+                                                            <span>Semester & SKS</span>
+                                                            <span className="text-slate-500">{showAdvancedEdit ? 'Sembunyikan' : 'Tampilkan'}</span>
+                                                        </button>
+
+                                                        {showAdvancedEdit && (
+                                                            <div className="grid gap-2 lg:grid-cols-2">
+                                                                <div>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="1"
+                                                                        max="14"
+                                                                        className="form-input h-9 text-xs"
+                                                                        value={edit.data.semester_total}
+                                                                        onChange={(e) => edit.setData('semester_total', e.target.value)}
+                                                                        title="Total Semester"
+                                                                        placeholder="Total semester"
+                                                                    />
+                                                                    <FieldError message={edit.errors.semester_total} />
+                                                                </div>
+                                                                <div>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        className="form-input h-9 text-xs"
+                                                                        value={edit.data.sks_lulus}
+                                                                        onChange={(e) => edit.setData('sks_lulus', e.target.value)}
+                                                                        title="SKS Lulus"
+                                                                        placeholder="SKS lulus"
+                                                                    />
+                                                                    <FieldError message={edit.errors.sks_lulus} />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-3 py-3 align-top">
+                                                    <EditActions onCancel={cancelEdit} onSave={submitEdit} processing={edit.processing} />
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            <tr className="border-t border-slate-100 align-top">
+                                                <td className="px-3 py-3 font-semibold text-slate-700 whitespace-nowrap">{item.kode}</td>
+                                                <td className="px-3 py-3 text-slate-700">{item.nama}</td>
+                                                <td className="px-3 py-3 text-slate-600">{item.jurusan?.nama || '-'}</td>
+                                                <td className="px-3 py-3 text-slate-600">{item.jenjang} | {item.semester_total} semester | {item.sks_lulus} SKS</td>
+                                                <td className="px-3 py-3"><RowActions onEdit={() => startEdit(item)} onDelete={() => confirmDeletion(item)} kode={item.kode} /></td>
                                             </tr>
                                         )}
                                     </Fragment>

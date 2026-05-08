@@ -36,6 +36,7 @@ function Icon({ name }) {
 function iconKey(route = '') {
     if (route.includes('dashboard')) return 'dashboard';
     if (route.includes('akademik') || route.includes('krs') || route.includes('dosen')) return 'academic';
+    if (route.includes('finance-period-locks') || route.includes('finance-reconciliation')) return 'finance';
     if (route.includes('keuangan') || route.includes('payment') || route.includes('tagihan')) return 'finance';
     if (route.includes('mahasiswa') || route.includes('pmb')) return 'users';
     if (route.includes('laporan')) return 'report';

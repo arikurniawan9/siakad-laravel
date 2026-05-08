@@ -12,10 +12,12 @@ use App\Models\TahunAkademik;
 use App\Models\User;
 use App\Services\DatabaseMaintenanceService;
 use App\Support\Audit;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -98,6 +100,7 @@ class SettingsController extends Controller
         $logLimit = min(max((int) request()->integer('log_limit', 20), 5), 200);
 
         return Inertia::render('Modules/Settings/Database', [
+            'availableTables' => $this->databaseMaintenanceService->listTables(),
             'backups' => collect($this->databaseMaintenanceService->listBackups())->map(fn ($backup) => [
                 'filename' => $backup['filename'],
                 'size' => (int) $backup['size'],
@@ -138,6 +141,11 @@ class SettingsController extends Controller
         $search = trim((string) $request->string('search'));
         $limit = min(max((int) $request->integer('limit', 50), 5), 200);
 
+        $tahunAkademiks = TahunAkademik::query()
+            ->orderByDesc('is_active')
+            ->orderByDesc('id')
+            ->get(['id', 'kode', 'nama', 'semester_aktif', 'is_active']);
+
         $locks = FinancePeriodLock::query()
             ->with('lockedBy:id,name,email')
             ->when($search !== '', function ($q) use ($search) {
@@ -153,6 +161,13 @@ class SettingsController extends Controller
                 'search' => $search,
                 'limit' => $limit,
             ],
+            'tahunAkademiks' => $tahunAkademiks->map(fn (TahunAkademik $tahun) => [
+                'id' => $tahun->id,
+                'kode' => $tahun->kode,
+                'nama' => $tahun->nama,
+                'semester_aktif' => (int) $tahun->semester_aktif,
+                'is_active' => (bool) $tahun->is_active,
+            ])->values(),
             'locks' => $locks->map(fn (FinancePeriodLock $lock) => [
                 'id' => $lock->id,
                 'tahun_akademik' => $lock->tahun_akademik,
@@ -171,7 +186,12 @@ class SettingsController extends Controller
     public function storeFinancePeriodLock(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'tahun_akademik' => ['required', 'string', 'max:20'],
+            'tahun_akademik' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::exists('tahun_akademiks', 'kode')->whereNull('deleted_at'),
+            ],
             'semester_akademik' => ['nullable', 'integer', 'min:1', 'max:14'],
             'reason' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -436,17 +456,34 @@ class SettingsController extends Controller
         return back()->with('success', 'Item rekonsiliasi ditandai ignored.');
     }
 
-    public function backupDatabase(): RedirectResponse
+    public function backupDatabase(Request $request): RedirectResponse
     {
         try {
-            $backup = $this->databaseMaintenanceService->backup();
-            $this->logMaintenance(request(), 'backup', 'success', $backup['filename'], 'Backup database berhasil.');
+            $data = $request->validate([
+                'mode' => ['nullable', 'string', Rule::in(['full', 'custom'])],
+                'label' => ['nullable', 'string', 'max:40'],
+                'tables' => ['nullable', 'array', 'min:1'],
+                'tables.*' => ['string', Rule::in($this->databaseMaintenanceService->listTables())],
+            ]);
 
-            return back()->with('success', 'Backup database berhasil dibuat: '.$backup['filename']);
+            $mode = (string) ($data['mode'] ?? 'full');
+            $tables = $mode === 'custom' ? ($data['tables'] ?? []) : null;
+            $label = filled($data['label'] ?? null) ? trim((string) $data['label']) : null;
+
+            $backup = $this->databaseMaintenanceService->backup($tables, $label);
+            $tableCount = is_array($backup['tables'] ?? null) ? count($backup['tables']) : 0;
+
+            $message = $mode === 'custom'
+                ? 'Backup parsial berhasil dibuat: '.$backup['filename'].' ('.$tableCount.' tabel)'
+                : 'Backup database berhasil dibuat: '.$backup['filename'];
+
+            $this->logMaintenance($request, 'backup', 'success', $backup['filename'], $message);
+
+            return back()->with('success', $message);
         } catch (\Throwable $exception) {
-            $this->logMaintenance(request(), 'backup', 'failed', null, $exception->getMessage());
+            $this->logMaintenance($request, 'backup', 'failed', null, $exception->getMessage());
 
-            return back()->withErrors(['backup_file' => $exception->getMessage()]);
+            return back()->withErrors(['backup_file' => $this->humanizeDatabaseException($exception)]);
         }
     }
 
@@ -457,14 +494,33 @@ class SettingsController extends Controller
         ]);
 
         try {
-            $this->databaseMaintenanceService->restore($data['backup_file']);
-            $this->logMaintenance($request, 'restore', 'success', $data['backup_file']->getClientOriginalName(), 'Restore database selesai.');
+            $result = $this->databaseMaintenanceService->restore($data['backup_file']);
+            $filename = $data['backup_file']->getClientOriginalName();
+            $message = 'Restore database selesai. Statements: '.($result['statements'] ?? 0).', durasi: '.($result['elapsed_ms'] ?? 0).'ms.';
 
-            return back()->with('success', 'Restore database selesai.');
+            $this->logMaintenance($request, 'restore', 'success', $filename, $message);
+
+            return back()->with('success', $message);
         } catch (\Throwable $exception) {
             $this->logMaintenance($request, 'restore', 'failed', $data['backup_file']->getClientOriginalName(), $exception->getMessage());
 
-            return back()->withErrors(['backup_file' => $exception->getMessage()]);
+            return back()->withErrors(['backup_file' => $this->humanizeDatabaseException($exception)]);
+        }
+    }
+
+    public function restoreDatabaseFromStoredBackup(Request $request, string $filename): RedirectResponse
+    {
+        try {
+            $result = $this->databaseMaintenanceService->restoreFromStoredBackup($filename);
+            $message = 'Restore database selesai. Statements: '.($result['statements'] ?? 0).', durasi: '.($result['elapsed_ms'] ?? 0).'ms.';
+
+            $this->logMaintenance($request, 'restore', 'success', basename($filename), $message);
+
+            return back()->with('success', $message);
+        } catch (\Throwable $exception) {
+            $this->logMaintenance($request, 'restore', 'failed', basename($filename), $exception->getMessage());
+
+            return back()->withErrors(['backup_file' => $this->humanizeDatabaseException($exception)]);
         }
     }
 
@@ -573,14 +629,73 @@ class SettingsController extends Controller
 
     private function logMaintenance(Request $request, string $action, string $status, ?string $filename, ?string $message): void
     {
-        DatabaseMaintenanceLog::query()->create([
-            'user_id' => $request->user()?->id,
-            'action' => $action,
-            'status' => $status,
-            'filename' => $filename,
-            'ip_address' => $request->ip(),
-            'message' => $message,
-            'executed_at' => now(),
-        ]);
+        $userId = $request->user()?->id;
+
+        try {
+            if ($userId && ! DB::table('users')->whereKey($userId)->exists()) {
+                $userId = null;
+            }
+
+            DatabaseMaintenanceLog::query()->create([
+                'user_id' => $userId,
+                'action' => $action,
+                'status' => $status,
+                'filename' => $filename,
+                'ip_address' => $request->ip(),
+                'message' => $message,
+                'executed_at' => now(),
+            ]);
+        } catch (\Throwable $exception) {
+            // Jangan menggagalkan aksi utama (restore/backup/reset) hanya karena gagal log.
+            try {
+                if ($userId) {
+                    DatabaseMaintenanceLog::query()->create([
+                        'user_id' => null,
+                        'action' => $action,
+                        'status' => $status,
+                        'filename' => $filename,
+                        'ip_address' => $request->ip(),
+                        'message' => $message ? ($message."\n(log fallback: user_id missing/invalid)") : 'Log fallback: user_id missing/invalid',
+                        'executed_at' => now(),
+                    ]);
+                }
+            } catch (\Throwable) {
+                // ignore
+            }
+
+            logger()->warning('Failed to write database maintenance log', [
+                'action' => $action,
+                'status' => $status,
+                'filename' => $filename,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function humanizeDatabaseException(\Throwable $exception): string
+    {
+        $message = (string) $exception->getMessage();
+
+        if (str_contains($message, 'There is no active transaction')) {
+            return 'Restore gagal karena transaksi database tidak aktif. Coba ulang restore dengan file backup yang valid.';
+        }
+
+        if ($exception instanceof QueryException) {
+            $sqlState = (string) ($exception->errorInfo[0] ?? '');
+
+            if ($sqlState === '23000') {
+                if (str_contains($message, 'database_maintenance_logs_user_id_foreign')) {
+                    return 'Restore selesai, tetapi sistem gagal menyimpan log maintenance (akun pengguna tidak ditemukan setelah restore). Silakan refresh dan login ulang bila perlu.';
+                }
+
+                return 'Aksi gagal karena konflik relasi data (integrity constraint). Pastikan file backup sesuai dengan struktur database saat ini.';
+            }
+        }
+
+        if (str_contains($message, 'File backup kosong')) {
+            return 'File backup kosong. Silakan pilih file .sql yang valid.';
+        }
+
+        return 'Terjadi kesalahan saat menjalankan aksi database. Silakan coba lagi atau cek log server.';
     }
 }

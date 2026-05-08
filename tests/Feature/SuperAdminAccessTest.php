@@ -50,6 +50,7 @@ class SuperAdminAccessTest extends TestCase
         $this->actingAs($user)->get('/akademik/jurusan/template')->assertOk();
         $this->actingAs($user)->get('/akademik/jurusan/export')->assertOk();
         $this->actingAs($user)->get('/keuangan')->assertOk();
+        $this->actingAs($user)->get('/keuangan/setup-tarif')->assertOk();
         $this->actingAs($user)->get('/mahasiswa')->assertOk();
         $this->actingAs($user)->get('/dosen')->assertOk();
         $this->actingAs($user)->get('/laporan')->assertOk();
@@ -87,6 +88,7 @@ class SuperAdminAccessTest extends TestCase
         $this->actingAs($user)->get('/akademik/ruangan/export')->assertForbidden();
         $this->actingAs($user)->get('/akademik/tahun-akademik/template')->assertForbidden();
         $this->actingAs($user)->get('/settings')->assertForbidden();
+        $this->actingAs($user)->get('/keuangan/setup-tarif')->assertForbidden();
     }
 
     public function test_baak_can_access_baak_and_shared_pages(): void
