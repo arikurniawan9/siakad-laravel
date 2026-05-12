@@ -30,6 +30,25 @@ function childrenFromText(text = '') {
         .filter((item) => item.label && item.url);
 }
 
+const quickTemplates = {
+    islami: {
+        campus_name: 'STAI Al-Ittihad',
+        tagline: 'Kampus Islam Berdaya Saing Global',
+        hero_title: 'Sekolah Tinggi Agama Islam yang Mengintegrasikan Akhlak, Keilmuan, dan Profesionalisme',
+        hero_subtitle: 'Kami berkomitmen mencetak generasi muslim berilmu, berakhlak mulia, dan siap berkontribusi untuk umat, bangsa, dan peradaban.',
+        about_title: 'Tentang Kampus Kami',
+        about_body: 'STAI Al-Ittihad hadir sebagai institusi pendidikan tinggi Islam yang fokus pada mutu akademik, penguatan karakter, dan pengembangan kepemimpinan mahasiswa.',
+    },
+    modern: {
+        campus_name: 'Kampus Digital Nusantara',
+        tagline: 'Smart Campus for Future Leaders',
+        hero_title: 'Bangun Kompetensi Akademik dan Karier Anda di Kampus Berbasis Teknologi',
+        hero_subtitle: 'Pembelajaran adaptif, sistem digital terintegrasi, dan ekosistem inovatif untuk melahirkan lulusan unggul dan relevan dengan industri.',
+        about_title: 'Profil Kampus',
+        about_body: 'Kami menggabungkan kualitas akademik, teknologi pembelajaran, dan kolaborasi industri untuk menciptakan pengalaman belajar yang transformatif.',
+    },
+};
+
 export default function Page({ auth, content = null, previewUrl = '#', canPublish = false }) {
     const { menu, flash, errors } = usePage().props;
 
@@ -59,6 +78,7 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
         hero_layout: content?.hero_layout || 'two-column',
         news_items: Array.isArray(content?.news_items) ? content.news_items : [],
     });
+    const initialData = useMemo(() => ({ ...form.data }), []);
 
     const contentChecklist = useMemo(() => {
         const checks = [
@@ -85,6 +105,24 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
                 children: childrenFromText(item?.children_text || ''),
             })),
         })).put(route('settings.landing-page.update'));
+    };
+
+    const applyQuickTemplate = (key) => {
+        const tpl = quickTemplates[key];
+        if (!tpl) return;
+        form.setData((prev) => ({
+            ...prev,
+            campus_name: tpl.campus_name,
+            tagline: tpl.tagline,
+            hero_title: tpl.hero_title,
+            hero_subtitle: tpl.hero_subtitle,
+            about_title: tpl.about_title,
+            about_body: tpl.about_body,
+        }));
+    };
+
+    const resetToInitial = () => {
+        form.setData({ ...initialData });
     };
 
     const updateStat = (index, key, value) => {
@@ -201,6 +239,11 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
                                 {item.ok ? 'OK' : 'Perlu cek'}: {item.label}
                             </div>
                         ))}
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <button type="button" className="btn-outline" onClick={() => applyQuickTemplate('islami')}>Template Kampus Islami</button>
+                        <button type="button" className="btn-outline" onClick={() => applyQuickTemplate('modern')}>Template Kampus Modern</button>
+                        <button type="button" className="btn-outline" onClick={resetToInitial}>Reset ke Data Awal</button>
                     </div>
                 </section>
 
