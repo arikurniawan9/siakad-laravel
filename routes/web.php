@@ -135,6 +135,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:super-admin,admin'])->group(function () {
         Route::get('/settings/landing-page', [LandingPageController::class, 'edit'])->name('settings.landing-page.index');
         Route::put('/settings/landing-page', [LandingPageController::class, 'update'])->name('settings.landing-page.update');
+        Route::post('/settings/landing-page/upload-image', [LandingPageController::class, 'uploadImage'])->name('settings.landing-page.upload-image');
     });
 
     Route::middleware(['role:super-admin,admin,operator,baak'])->group(function () {

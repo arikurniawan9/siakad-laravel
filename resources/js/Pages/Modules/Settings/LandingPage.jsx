@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 
 function toTextList(values = []) {
     return Array.isArray(values) ? values.join('\n') : '';
@@ -10,6 +10,23 @@ function fromTextList(text = '') {
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean);
+}
+
+function childrenToText(children = []) {
+    if (!Array.isArray(children) || children.length === 0) return '';
+    return children.map((item) => `${item?.label || ''}|${item?.url || ''}`).join('\n');
+}
+
+function childrenFromText(text = '') {
+    return String(text)
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+            const [label = '', url = ''] = line.split('|');
+            return { label: label.trim(), url: url.trim() };
+        })
+        .filter((item) => item.label && item.url);
 }
 
 export default function Page({ auth, content = null, previewUrl = '#', canPublish = false }) {
@@ -36,7 +53,7 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
         highlights: Array.isArray(content?.highlights) ? content.highlights : [],
         colors: content?.colors || { primary: '#0f766e', accent: '#f59e0b' },
         socials: content?.socials || { instagram: '', youtube: '', facebook: '' },
-        nav_menus: Array.isArray(content?.nav_menus) ? content.nav_menus : [],
+        nav_menus: Array.isArray(content?.nav_menus) ? content.nav_menus.map((item) => ({ ...item, children_text: childrenToText(item?.children) })) : [],
         slider_items: Array.isArray(content?.slider_items) ? content.slider_items : [],
     });
 
@@ -44,6 +61,11 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
         form.transform((data) => ({
             ...data,
             programs: fromTextList(data.programs_text),
+            nav_menus: (data.nav_menus || []).map((item) => ({
+                label: item?.label || '',
+                url: item?.url || '',
+                children: childrenFromText(item?.children_text || ''),
+            })),
         })).put(route('settings.landing-page.update'));
     };
 
@@ -66,7 +88,7 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
     };
 
     const addNavMenu = () => {
-        form.setData('nav_menus', [...form.data.nav_menus, { label: '', url: '' }]);
+        form.setData('nav_menus', [...form.data.nav_menus, { label: '', url: '', children_text: '' }]);
     };
 
     const removeNavMenu = (index) => {
@@ -85,6 +107,23 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
 
     const removeSlider = (index) => {
         form.setData('slider_items', form.data.slider_items.filter((_, idx) => idx !== index));
+    };
+
+    const uploadSliderImage = (index, file) => {
+        if (!file) return;
+        const uploadForm = new FormData();
+        uploadForm.append('image', file);
+        uploadForm.append('target', 'slider');
+        router.post(route('settings.landing-page.upload-image'), uploadForm, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: (page) => {
+                const uploadedUrl = page.props?.flash?.landing_uploaded_image_url;
+                if (uploadedUrl) {
+                    updateSlider(index, 'image_url', uploadedUrl);
+                }
+            },
+        });
     };
 
     return (
@@ -165,6 +204,7 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
                                 <input className="form-input" placeholder="Label menu" value={item?.label || ''} onChange={(e) => updateNavMenu(index, 'label', e.target.value)} />
                                 <input className="form-input" placeholder="https://..." value={item?.url || ''} onChange={(e) => updateNavMenu(index, 'url', e.target.value)} />
                                 <button type="button" className="btn-outline" onClick={() => removeNavMenu(index)}>Hapus</button>
+                                <textarea className="form-input md:col-span-3 min-h-[70px]" placeholder={'Submenu (opsional) format per baris: Label|URL\nContoh:\nVisi Misi|https://kampus.ac.id/visi'} value={item?.children_text || ''} onChange={(e) => updateNavMenu(index, 'children_text', e.target.value)} />
                             </div>
                         ))}
                     </div>
@@ -181,6 +221,7 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
                                     <input className="form-input md:col-span-2" placeholder="Judul slide" value={item?.title || ''} onChange={(e) => updateSlider(index, 'title', e.target.value)} />
                                     <textarea className="form-input min-h-[80px] md:col-span-2" placeholder="Deskripsi singkat" value={item?.subtitle || ''} onChange={(e) => updateSlider(index, 'subtitle', e.target.value)} />
                                     <input className="form-input md:col-span-2" placeholder="URL gambar slide" value={item?.image_url || ''} onChange={(e) => updateSlider(index, 'image_url', e.target.value)} />
+                                    <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" className="form-input md:col-span-2" onChange={(e) => uploadSliderImage(index, e.target.files?.[0])} />
                                     <input className="form-input" placeholder="Label CTA (opsional)" value={item?.cta_label || ''} onChange={(e) => updateSlider(index, 'cta_label', e.target.value)} />
                                     <input className="form-input" placeholder="URL CTA (opsional)" value={item?.cta_url || ''} onChange={(e) => updateSlider(index, 'cta_url', e.target.value)} />
                                 </div>

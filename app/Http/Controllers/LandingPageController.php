@@ -6,7 +6,10 @@ use App\Models\AppSetting;
 use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -66,6 +69,9 @@ class LandingPageController extends Controller
             'nav_menus' => ['required', 'array', 'min:3', 'max:10'],
             'nav_menus.*.label' => ['required', 'string', 'max:40'],
             'nav_menus.*.url' => ['required', 'url', 'max:500'],
+            'nav_menus.*.children' => ['nullable', 'array', 'max:10'],
+            'nav_menus.*.children.*.label' => ['required_with:nav_menus.*.children', 'string', 'max:40'],
+            'nav_menus.*.children.*.url' => ['required_with:nav_menus.*.children', 'url', 'max:500'],
             'slider_items' => ['required', 'array', 'min:1', 'max:8'],
             'slider_items.*.title' => ['required', 'string', 'max:120'],
             'slider_items.*.subtitle' => ['required', 'string', 'max:220'],
@@ -91,6 +97,30 @@ class LandingPageController extends Controller
         );
 
         return back()->with('success', 'Konten landing page berhasil diperbarui.');
+    }
+
+    public function uploadImage(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
+            'target' => ['nullable', 'string', 'max:30'],
+        ]);
+
+        /** @var UploadedFile $file */
+        $file = $validated['image'];
+        $name = now()->format('YmdHis').'-'.Str::random(8).'.'.$file->getClientOriginalExtension();
+        $path = $file->storeAs('landing', $name, 'public');
+        $url = Storage::disk('public')->url($path);
+
+        Audit::log(
+            source: 'settings',
+            action: 'landing_page.upload_image',
+            entityType: 'app_setting',
+            message: 'Upload gambar landing page',
+            meta: ['path' => $path, 'target' => $validated['target'] ?? 'slider'],
+        );
+
+        return back()->with('landing_uploaded_image_url', $url)->with('success', 'Gambar berhasil diupload.');
     }
 
     private function landingContent(): array
@@ -148,7 +178,11 @@ class LandingPageController extends Controller
             ],
             'nav_menus' => [
                 ['label' => 'Beranda', 'url' => url('/')],
-                ['label' => 'Profil', 'url' => url('/#profil')],
+                ['label' => 'Profil', 'url' => url('/#profil'), 'children' => [
+                    ['label' => 'Tentang Kampus', 'url' => url('/#profil')],
+                    ['label' => 'Kontak', 'url' => url('/#kontak'),
+                    ],
+                ]],
                 ['label' => 'Program Studi', 'url' => url('/#program')],
                 ['label' => 'Informasi', 'url' => url('/#informasi')],
                 ['label' => 'Kontak', 'url' => url('/#kontak')],

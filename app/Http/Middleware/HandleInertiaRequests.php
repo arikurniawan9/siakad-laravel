@@ -60,6 +60,10 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'info' => fn () => $request->session()->get('info'),
+                'landing_uploaded_image_url' => fn () => $request->session()->get('landing_uploaded_image_url'),
+                'key' => fn () => (string) now()->format('Uu'),
             ],
             'notifications' => [
                 'unreadCount' => fn () => $request->user()?->unreadNotifications()->count() ?? 0,
