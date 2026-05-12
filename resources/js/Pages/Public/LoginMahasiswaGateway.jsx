@@ -15,7 +15,8 @@ export default function Page() {
 
                     <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                         <p>Gunakan email dan password yang didaftarkan saat registrasi.</p>
-                        <p>Jika belum punya akun, lakukan pendaftaran mahasiswa baru terlebih dahulu.</p>
+                        <p>Akses ini khusus mahasiswa/calon mahasiswa. Admin tetap login dari halaman admin.</p>
+                        <p>Jika lupa password, gunakan fitur reset password di halaman login.</p>
                     </div>
 
                     <div className="mt-6 flex flex-wrap gap-3">
@@ -34,4 +35,3 @@ export default function Page() {
         </>
     );
 }
-

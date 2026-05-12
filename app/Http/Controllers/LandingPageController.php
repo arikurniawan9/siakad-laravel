@@ -69,6 +69,7 @@ class LandingPageController extends Controller
             'nav_menus' => ['required', 'array', 'min:3', 'max:10'],
             'nav_menus.*.label' => ['required', 'string', 'max:40'],
             'nav_menus.*.url' => ['required', 'url', 'max:500'],
+            'nav_menus.*.is_visible' => ['nullable', 'boolean'],
             'nav_menus.*.children' => ['nullable', 'array', 'max:10'],
             'nav_menus.*.children.*.label' => ['required_with:nav_menus.*.children', 'string', 'max:40'],
             'nav_menus.*.children.*.url' => ['required_with:nav_menus.*.children', 'url', 'max:500'],
@@ -183,15 +184,15 @@ class LandingPageController extends Controller
                 'facebook' => '',
             ],
             'nav_menus' => [
-                ['label' => 'Beranda', 'url' => url('/')],
-                ['label' => 'Profil', 'url' => url('/#profil'), 'children' => [
+                ['label' => 'Beranda', 'url' => url('/'), 'is_visible' => true],
+                ['label' => 'Profil', 'url' => url('/#profil'), 'is_visible' => true, 'children' => [
                     ['label' => 'Tentang Kampus', 'url' => url('/#profil')],
                     ['label' => 'Kontak', 'url' => url('/#kontak'),
                     ],
                 ]],
-                ['label' => 'Program Studi', 'url' => url('/#program')],
-                ['label' => 'Informasi', 'url' => url('/#informasi')],
-                ['label' => 'Kontak', 'url' => url('/#kontak')],
+                ['label' => 'Program Studi', 'url' => url('/#program'), 'is_visible' => true],
+                ['label' => 'Informasi', 'url' => url('/#informasi'), 'is_visible' => true],
+                ['label' => 'Kontak', 'url' => url('/#kontak'), 'is_visible' => true],
             ],
             'slider_items' => [
                 [

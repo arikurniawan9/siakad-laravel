@@ -13,7 +13,7 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
     const stats = Array.isArray(content?.stats) ? content.stats : [];
     const programs = Array.isArray(content?.programs) ? content.programs : [];
     const highlights = Array.isArray(content?.highlights) ? content.highlights : [];
-    const navMenus = Array.isArray(content?.nav_menus) ? content.nav_menus : [];
+    const navMenus = Array.isArray(content?.nav_menus) ? content.nav_menus.filter((item) => item?.is_visible !== false) : [];
     const sliderItems = Array.isArray(content?.slider_items) ? content.slider_items : [];
     const newsItems = Array.isArray(content?.news_items) ? content.news_items : [];
     const heroLayout = content?.hero_layout || 'two-column';
@@ -82,7 +82,7 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                                     onClick={() => setMobileNavOpen((prev) => !prev)}
                                     aria-label="Toggle menu"
                                 >
-                                    <span className="text-lg leading-none">{mobileNavOpen ? '×' : '☰'}</span>
+                                    <span className="text-lg leading-none">{mobileNavOpen ? 'X' : '|||'}</span>
                                 </button>
                                 {auth?.user ? <Link href={route('dashboard')} className="btn-outline">Dashboard</Link> : null}
                                 {!auth?.user && canLogin ? <Link href={route('login')} className="btn-outline">Masuk</Link> : null}

@@ -66,11 +66,11 @@ const quickTemplates = {
             { title: 'Biaya Terjangkau', description: 'Akses pendidikan tinggi Islam bermutu dengan skema biaya yang terencana.' },
         ],
         nav_menus: [
-            { label: 'Beranda', url: '/' },
-            { label: 'Profil', url: '/#profil', children_text: 'Visi Misi|/#profil\nKontak|/#kontak' },
-            { label: 'Program Studi', url: '/#program', children_text: '' },
-            { label: 'Informasi', url: '/#informasi', children_text: 'Berita Kampus|/#berita' },
-            { label: 'Kontak', url: '/#kontak', children_text: '' },
+            { label: 'Beranda', url: '/', children_text: '', is_visible: true },
+            { label: 'Profil', url: '/#profil', children_text: 'Visi Misi|/#profil\nKontak|/#kontak', is_visible: true },
+            { label: 'Program Studi', url: '/#program', children_text: '', is_visible: true },
+            { label: 'Informasi', url: '/#informasi', children_text: 'Berita Kampus|/#berita', is_visible: true },
+            { label: 'Kontak', url: '/#kontak', children_text: '', is_visible: true },
         ],
         slider_items: [
             { title: 'Selamat Datang di STAI Al-Ittihad', subtitle: 'Kampus Islam modern yang membina akhlak, ilmu, dan kepemimpinan mahasiswa.', image_url: '/halaman utama.png', cta_label: 'Pelajari Kampus', cta_url: '/#profil' },
@@ -118,11 +118,11 @@ const quickTemplates = {
             { title: 'Career Center', description: 'Pendampingan karier dari semester awal hingga penyaluran kerja alumni.' },
         ],
         nav_menus: [
-            { label: 'Beranda', url: '/' },
-            { label: 'Profil', url: '/#profil', children_text: 'Tentang Kami|/#profil\nKontak|/#kontak' },
-            { label: 'Program', url: '/#program', children_text: '' },
-            { label: 'Keunggulan', url: '/#informasi', children_text: 'Berita|/#berita' },
-            { label: 'Kontak', url: '/#kontak', children_text: '' },
+            { label: 'Beranda', url: '/', children_text: '', is_visible: true },
+            { label: 'Profil', url: '/#profil', children_text: 'Tentang Kami|/#profil\nKontak|/#kontak', is_visible: true },
+            { label: 'Program', url: '/#program', children_text: '', is_visible: true },
+            { label: 'Keunggulan', url: '/#informasi', children_text: 'Berita|/#berita', is_visible: true },
+            { label: 'Kontak', url: '/#kontak', children_text: '', is_visible: true },
         ],
         slider_items: [
             { title: 'Future-Ready Campus', subtitle: 'Kurikulum modern untuk mempersiapkan lulusan menghadapi transformasi digital.', image_url: '/halaman utama.png', cta_label: 'Lihat Program', cta_url: '/#program' },
@@ -160,7 +160,7 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
         highlights: Array.isArray(content?.highlights) ? content.highlights : [],
         colors: content?.colors || { primary: '#0f766e', accent: '#f59e0b' },
         socials: content?.socials || { instagram: '', youtube: '', facebook: '' },
-        nav_menus: Array.isArray(content?.nav_menus) ? content.nav_menus.map((item) => ({ ...item, children_text: childrenToText(item?.children) })) : [],
+        nav_menus: Array.isArray(content?.nav_menus) ? content.nav_menus.map((item) => ({ ...item, is_visible: item?.is_visible !== false, children_text: childrenToText(item?.children) })) : [],
         slider_items: Array.isArray(content?.slider_items) ? content.slider_items : [],
         hero_layout: content?.hero_layout || 'two-column',
         news_items: Array.isArray(content?.news_items) ? content.news_items : [],
@@ -189,6 +189,7 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
             nav_menus: (data.nav_menus || []).map((item) => ({
                 label: item?.label || '',
                 url: item?.url || '',
+                is_visible: item?.is_visible !== false,
                 children: childrenFromText(item?.children_text || ''),
             })),
         })).put(route('settings.landing-page.update'));
@@ -261,6 +262,7 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
             nav_menus: (nextData.nav_menus || []).map((item) => ({
                 label: item?.label || '',
                 url: item?.url || '',
+                is_visible: item?.is_visible !== false,
                 children: childrenFromText(item?.children_text || ''),
             })),
         })).put(route('settings.landing-page.update'));
@@ -289,11 +291,21 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
     };
 
     const addNavMenu = () => {
-        form.setData('nav_menus', [...form.data.nav_menus, { label: '', url: '', children_text: '' }]);
+        form.setData('nav_menus', [...form.data.nav_menus, { label: '', url: '', children_text: '', is_visible: true }]);
     };
 
     const removeNavMenu = (index) => {
         form.setData('nav_menus', form.data.nav_menus.filter((_, idx) => idx !== index));
+    };
+
+    const moveNavMenu = (index, direction) => {
+        const nextIndex = direction === 'up' ? index - 1 : index + 1;
+        if (nextIndex < 0 || nextIndex >= form.data.nav_menus.length) return;
+        const next = [...form.data.nav_menus];
+        const current = next[index];
+        next[index] = next[nextIndex];
+        next[nextIndex] = current;
+        form.setData('nav_menus', next);
     };
 
     const updateSlider = (index, key, value) => {
@@ -448,7 +460,20 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
                             <div key={`menu-${index}`} className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1fr_1fr_auto]">
                                 <input className="form-input" placeholder="Label menu" value={item?.label || ''} onChange={(e) => updateNavMenu(index, 'label', e.target.value)} />
                                 <input className="form-input" placeholder="https://..." value={item?.url || ''} onChange={(e) => updateNavMenu(index, 'url', e.target.value)} />
-                                <button type="button" className="btn-outline" onClick={() => removeNavMenu(index)}>Hapus</button>
+                                <div className="flex flex-wrap items-center gap-1">
+                                    <button type="button" className="btn-outline px-3" onClick={() => moveNavMenu(index, 'up')} disabled={index === 0}>Up</button>
+                                    <button type="button" className="btn-outline px-3" onClick={() => moveNavMenu(index, 'down')} disabled={index === form.data.nav_menus.length - 1}>Down</button>
+                                    <button type="button" className="btn-outline" onClick={() => removeNavMenu(index)}>Hapus</button>
+                                </div>
+                                <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 md:col-span-3">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-slate-300"
+                                        checked={item?.is_visible !== false}
+                                        onChange={(e) => updateNavMenu(index, 'is_visible', e.target.checked)}
+                                    />
+                                    Tampilkan menu ini di navbar publik
+                                </label>
                                 <textarea className="form-input md:col-span-3 min-h-[70px]" placeholder={'Submenu (opsional) format per baris: Label|URL\nContoh:\nVisi Misi|https://kampus.ac.id/visi'} value={item?.children_text || ''} onChange={(e) => updateNavMenu(index, 'children_text', e.target.value)} />
                             </div>
                         ))}
