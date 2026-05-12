@@ -39,6 +39,7 @@ $keuangan = [
 ];
 
 $keuanganSuperadmin = array_merge($keuangan, [
+    ['label' => 'Payment Gateway', 'route' => 'settings.payment-gateway.index'],
     ['label' => 'Closing / Period Lock', 'route' => 'settings.finance-period-locks.index'],
     ['label' => 'Rekonsiliasi Gateway', 'route' => 'settings.finance-reconciliation.index'],
 ]);
@@ -53,6 +54,8 @@ $sistem = [
 
 $superAdminExtras = [
     ['label' => 'Manajemen User & Akses', 'route' => 'settings.user-access.index'],
+    ['label' => 'Landing Page Kampus', 'route' => 'settings.landing-page.index'],
+    ['label' => 'Payment Gateway', 'route' => 'settings.payment-gateway.index'],
     ['label' => 'Maintenance Database', 'route' => 'settings.database.index'],
     ['label' => 'Pengaturan', 'route' => 'settings.index'],
 ];
@@ -74,7 +77,9 @@ return [
             ['label' => 'Data Dosen', 'route' => 'dosen.index'],
             ['label' => 'Relasi Dosen', 'route' => 'dosen.relasi.index'],
         ]],
-        ['group' => 'Sistem', 'items' => $sistem],
+        ['group' => 'Sistem', 'items' => array_merge($sistem, [
+            ['label' => 'Landing Page Kampus', 'route' => 'settings.landing-page.index'],
+        ])],
     ]),
     'admin' => array_merge($dashboard, [
         ['group' => 'Master Akademik', 'items' => $masterAkademik],

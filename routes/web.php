@@ -10,6 +10,7 @@ use App\Http\Controllers\JenisPembayaranController;
 use App\Http\Controllers\KeuanganController;
 use App\Http\Controllers\KeuanganSetupController;
 use App\Http\Controllers\KrsController;
+use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\MahasiswaController;
 use App\Http\Controllers\MahasiswaImportController;
@@ -21,18 +22,9 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserAccessController;
 use App\Http\Controllers\XenditCallbackController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+Route::get('/', [LandingPageController::class, 'show'])->name('landing.index');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -138,6 +130,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/keuangan/setup-tarif/tarif/bulk', [KeuanganSetupController::class, 'storeTarifBulk'])->name('keuangan.setup.tarif.bulk');
             Route::delete('/keuangan/setup-tarif/tarif/{tarifKeuangan}', [KeuanganSetupController::class, 'destroyTarif'])->name('keuangan.setup.tarif.destroy');
         });
+    });
+
+    Route::middleware(['role:super-admin,admin'])->group(function () {
+        Route::get('/settings/landing-page', [LandingPageController::class, 'edit'])->name('settings.landing-page.index');
+        Route::put('/settings/landing-page', [LandingPageController::class, 'update'])->name('settings.landing-page.update');
     });
 
     Route::middleware(['role:super-admin,admin,operator,baak'])->group(function () {
