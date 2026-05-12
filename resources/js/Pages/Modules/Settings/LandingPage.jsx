@@ -225,6 +225,47 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
         }));
     };
 
+    const applyAndSaveTemplate = (key) => {
+        const tpl = quickTemplates[key];
+        if (!tpl) return;
+        const nextData = {
+            ...form.data,
+            campus_name: tpl.campus_name,
+            tagline: tpl.tagline,
+            hero_title: tpl.hero_title,
+            hero_subtitle: tpl.hero_subtitle,
+            hero_layout: tpl.hero_layout || form.data.hero_layout,
+            hero_image_url: tpl.hero_image_url || form.data.hero_image_url,
+            about_title: tpl.about_title,
+            about_body: tpl.about_body,
+            address: tpl.address || form.data.address,
+            email: tpl.email || form.data.email,
+            phone: tpl.phone || form.data.phone,
+            whatsapp: tpl.whatsapp || form.data.whatsapp,
+            cta_primary_label: tpl.cta_primary_label || form.data.cta_primary_label,
+            cta_primary_url: tpl.cta_primary_url || form.data.cta_primary_url,
+            cta_secondary_label: tpl.cta_secondary_label || form.data.cta_secondary_label,
+            cta_secondary_url: tpl.cta_secondary_url || form.data.cta_secondary_url,
+            colors: tpl.colors || form.data.colors,
+            stats: tpl.stats || form.data.stats,
+            programs_text: Array.isArray(tpl.programs) ? tpl.programs.join('\n') : form.data.programs_text,
+            highlights: tpl.highlights || form.data.highlights,
+            nav_menus: tpl.nav_menus || form.data.nav_menus,
+            slider_items: tpl.slider_items || form.data.slider_items,
+            news_items: tpl.news_items || form.data.news_items,
+        };
+        form.setData(nextData);
+        form.transform(() => ({
+            ...nextData,
+            programs: fromTextList(nextData.programs_text),
+            nav_menus: (nextData.nav_menus || []).map((item) => ({
+                label: item?.label || '',
+                url: item?.url || '',
+                children: childrenFromText(item?.children_text || ''),
+            })),
+        })).put(route('settings.landing-page.update'));
+    };
+
     const resetToInitial = () => {
         form.setData({ ...initialData });
     };
@@ -347,6 +388,8 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
                     <div className="mt-4 flex flex-wrap gap-2">
                         <button type="button" className="btn-outline" onClick={() => applyQuickTemplate('islami')}>Template Kampus Islami</button>
                         <button type="button" className="btn-outline" onClick={() => applyQuickTemplate('modern')}>Template Kampus Modern</button>
+                        <button type="button" className="btn-primary" onClick={() => applyAndSaveTemplate('islami')} disabled={form.processing}>Terapkan + Simpan (Islami)</button>
+                        <button type="button" className="btn-primary" onClick={() => applyAndSaveTemplate('modern')} disabled={form.processing}>Terapkan + Simpan (Modern)</button>
                         <button type="button" className="btn-outline" onClick={resetToInitial}>Reset ke Data Awal</button>
                     </div>
                 </section>
