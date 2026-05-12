@@ -168,6 +168,11 @@ function TransactionCard({ trx, onCopy, onDetail }) {
                     </a>
                 ) : null}
             </div>
+            {trx.reconciliation ? (
+                <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800">
+                    Perlu Rekonsiliasi: {trx.reconciliation.reason || 'Callback sukses masuk saat periode terkunci.'}
+                </div>
+            ) : null}
             <div className="mt-3">
                 <FlowBadge status={trx.status} />
             </div>
@@ -190,6 +195,7 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
         { label: 'Success', value: stats?.success ?? 0, tone: 'text-emerald-700' },
         { label: 'Pending', value: stats?.pending ?? 0, tone: 'text-amber-700' },
         { label: 'Gagal', value: stats?.failed ?? 0, tone: 'text-rose-700' },
+        { label: 'Rekonsiliasi', value: stats?.reconciliation_pending ?? 0, tone: 'text-fuchsia-700' },
     ];
     const callbackHealth = Math.max(0, (stats?.total_transaksi ?? 0) - (stats?.success ?? 0) - (stats?.pending ?? 0));
 
@@ -431,6 +437,9 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                                             <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${statusStyles[trx.status] || 'bg-slate-100 text-slate-700'}`}>
                                                 {statusLabel[trx.status] || trx.status}
                                             </span>
+                                            {trx.reconciliation ? (
+                                                <p className="mt-2 rounded-lg bg-rose-50 px-2 py-1 text-[10px] font-semibold text-rose-800">Perlu rekonsiliasi</p>
+                                            ) : null}
                                             <div className="mt-2">
                                                 <FlowBadge status={trx.status} />
                                             </div>
@@ -500,6 +509,13 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                                         <FlowBadge status={selectedTransaction.status} />
                                     </div>
                                 </div>
+                                {selectedTransaction.reconciliation ? (
+                                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">Rekonsiliasi</p>
+                                        <p className="mt-2 text-sm font-semibold text-rose-900">Perlu tindakan super-admin</p>
+                                        <p className="mt-1 text-xs text-rose-800">{selectedTransaction.reconciliation.reason || 'Callback masuk saat periode terkunci.'}</p>
+                                    </div>
+                                ) : null}
                                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Invoice</p>
                                     <p className="mt-2 text-sm font-semibold text-slate-900">{selectedTransaction.tagihan?.kode_tagihan || '-'}</p>

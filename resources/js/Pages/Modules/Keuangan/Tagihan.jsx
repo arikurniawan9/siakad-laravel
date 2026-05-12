@@ -42,6 +42,42 @@ const statusLabel = {
     expired: 'Expired',
 };
 
+const invoiceTimelineByStatus = {
+    pending: ['Dibuat', 'Menunggu Pembayaran', 'Belum Lunas'],
+    partial: ['Dibuat', 'Cicilan Masuk', 'Belum Lunas'],
+    paid: ['Dibuat', 'Pembayaran Tercatat', 'Lunas'],
+    cancelled: ['Dibuat', 'Dibatalkan', 'Ditutup'],
+};
+
+function PaymentProgress({ total = 0, paid = 0 }) {
+    const safeTotal = Number(total || 0);
+    const safePaid = Number(paid || 0);
+    const percent = safeTotal > 0 ? Math.min(100, Math.max(0, Math.round((safePaid / safeTotal) * 100))) : 0;
+
+    return (
+        <div>
+            <div className="mb-1 flex items-center justify-between text-[11px] font-semibold text-slate-600">
+                <span>Progress Bayar</span>
+                <span>{percent}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${percent}%` }} />
+            </div>
+        </div>
+    );
+}
+
+function InvoiceTimeline({ status }) {
+    const steps = invoiceTimelineByStatus[status] || invoiceTimelineByStatus.pending;
+
+    return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Timeline Invoice</p>
+            <p className="mt-1 text-[11px] font-semibold text-slate-700">{steps.join(' • ')}</p>
+        </div>
+    );
+}
+
 function PaginationButtons({ links = [], onClick }) {
     if (!links.length) return null;
 
@@ -116,6 +152,7 @@ function TagihanCard({ item, onStatusChange, onDelete, onDetail, onCopy }) {
             </dl>
 
             <div className="mt-4 space-y-2">
+                <PaymentProgress total={item.total} paid={item.paid_amount || 0} />
                 <select className="form-input" value={item.status} onChange={(e) => onStatusChange(item.id, e.target.value)}>
                     <option value="pending">pending</option>
                     <option value="partial">partial</option>
@@ -365,7 +402,7 @@ export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], fil
     };
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Keuangan - Tagihan</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Keuangan - Tagihan" />
 
             <ConfirmationModal
@@ -605,6 +642,9 @@ export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], fil
                                     <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${statusStyles[selectedTagihan.status] || 'bg-slate-100 text-slate-700'}`}>
                                         {statusLabel[selectedTagihan.status] || selectedTagihan.status}
                                     </p>
+                                    <div className="mt-3">
+                                        <InvoiceTimeline status={selectedTagihan.status} />
+                                    </div>
                                 </div>
                                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Jenis & Periode</p>
@@ -622,6 +662,9 @@ export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], fil
                                     <p className="mt-2 text-xs font-semibold text-slate-600">
                                         Terbayar {formatRupiah(selectedTagihan.paid_amount || 0)} • Sisa {formatRupiah(selectedTagihan.remaining_amount || 0)}
                                     </p>
+                                    <div className="mt-3">
+                                        <PaymentProgress total={selectedTagihan.total} paid={selectedTagihan.paid_amount || 0} />
+                                    </div>
                                 </div>
                                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Keterangan</p>
@@ -644,7 +687,7 @@ export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], fil
                                                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{item.kode}</p>
                                                         <h5 className="mt-1 text-sm font-bold text-slate-900">{item.nama}</h5>
                                                         <p className="mt-1 text-xs text-slate-500">
-                                                            Total {formatRupiah(item.total)} • Terbayar {formatRupiah(item.paid_amount || 0)} • Sisa {formatRupiah(item.remaining_amount || 0)}
+                                                            Total {formatRupiah(item.total)} - Terbayar {formatRupiah(item.paid_amount || 0)} - Sisa {formatRupiah(item.remaining_amount || 0)}
                                                         </p>
                                                     </div>
                                                 </div>

@@ -8,6 +8,7 @@ use App\Models\JenisPembayaran;
 use App\Models\Tagihan;
 use App\Models\TagihanItem;
 use App\Models\Transaksi;
+use App\Models\FinanceReconciliation;
 use App\Notifications\TagihanIssued;
 use App\Notifications\TagihanStatusChanged;
 use App\Support\Audit;
@@ -592,6 +593,12 @@ class KeuanganController extends Controller
         };
 
         $transaksiPage = $query->paginate($perPage)->withQueryString();
+        $transaksiIds = collect($transaksiPage->items())->pluck('id')->filter()->values();
+        $pendingReconciliations = FinanceReconciliation::query()
+            ->whereIn('transaksi_id', $transaksiIds)
+            ->where('status', 'pending')
+            ->get(['transaksi_id', 'id', 'reason', 'created_at'])
+            ->keyBy('transaksi_id');
 
         $stats = [
             'total_transaksi' => Transaksi::query()->count(),
@@ -599,6 +606,7 @@ class KeuanganController extends Controller
             'pending' => Transaksi::query()->where('status', 'pending')->count(),
             'failed' => Transaksi::query()->whereIn('status', ['failed', 'expired', 'cancelled'])->count(),
             'nominal_success' => (float) Transaksi::query()->where('status', 'success')->sum('gross_amount'),
+            'reconciliation_pending' => FinanceReconciliation::query()->where('status', 'pending')->count(),
         ];
 
         return Inertia::render('Modules/Keuangan/Transaksi', [
@@ -611,28 +619,38 @@ class KeuanganController extends Controller
                 'sort_dir' => $sortDir,
             ],
             'transaksis' => [
-                'data' => collect($transaksiPage->items())->map(fn (Transaksi $transaksi) => [
-                    'id' => $transaksi->id,
-                    'order_id' => $transaksi->order_id,
-                    'payment_type' => $transaksi->payment_type,
-                    'transaction_id' => $transaksi->transaction_id,
-                    'gross_amount' => (float) $transaksi->gross_amount,
-                    'status' => $transaksi->status,
-                    'fraud_status' => $transaksi->fraud_status,
-                    'paid_at' => optional($transaksi->paid_at)->toDateTimeString(),
-                    'created_at' => optional($transaksi->created_at)->toDateTimeString(),
-                    'snap_redirect_url' => $transaksi->snap_redirect_url,
-                    'tagihan' => [
-                        'kode_tagihan' => $transaksi->tagihan?->kode_tagihan,
-                        'jenis' => $transaksi->tagihan?->jenis,
-                        'status' => $transaksi->tagihan?->status,
-                        'total' => (float) ($transaksi->tagihan?->total ?? 0),
-                    ],
-                    'mahasiswa' => [
-                        'nim' => $transaksi->tagihan?->mahasiswa?->nim,
-                        'nama' => $transaksi->tagihan?->mahasiswa?->nama,
-                    ],
-                ])->values(),
+                'data' => collect($transaksiPage->items())->map(function (Transaksi $transaksi) use ($pendingReconciliations) {
+                    $reconciliation = $pendingReconciliations->get($transaksi->id);
+
+                    return [
+                        'id' => $transaksi->id,
+                        'order_id' => $transaksi->order_id,
+                        'payment_type' => $transaksi->payment_type,
+                        'transaction_id' => $transaksi->transaction_id,
+                        'gross_amount' => (float) $transaksi->gross_amount,
+                        'status' => $transaksi->status,
+                        'fraud_status' => $transaksi->fraud_status,
+                        'paid_at' => optional($transaksi->paid_at)->toDateTimeString(),
+                        'created_at' => optional($transaksi->created_at)->toDateTimeString(),
+                        'snap_redirect_url' => $transaksi->snap_redirect_url,
+                        'reconciliation' => $reconciliation ? [
+                            'id' => (int) $reconciliation->id,
+                            'status' => 'pending',
+                            'reason' => (string) ($reconciliation->reason ?? ''),
+                            'created_at' => optional($reconciliation->created_at)->toDateTimeString(),
+                        ] : null,
+                        'tagihan' => [
+                            'kode_tagihan' => $transaksi->tagihan?->kode_tagihan,
+                            'jenis' => $transaksi->tagihan?->jenis,
+                            'status' => $transaksi->tagihan?->status,
+                            'total' => (float) ($transaksi->tagihan?->total ?? 0),
+                        ],
+                        'mahasiswa' => [
+                            'nim' => $transaksi->tagihan?->mahasiswa?->nim,
+                            'nama' => $transaksi->tagihan?->mahasiswa?->nama,
+                        ],
+                    ];
+                })->values(),
                 'meta' => [
                     'current_page' => $transaksiPage->currentPage(),
                     'last_page' => $transaksiPage->lastPage(),
