@@ -161,7 +161,7 @@ class PmbController extends Controller
         abort(404);
     }
 
-    public function payment(): Response
+    public function payment(): Response|RedirectResponse
     {
         $userId = auth()->id();
         $summary = [
@@ -169,6 +169,12 @@ class PmbController extends Controller
             'paid' => Pmb::query()->where('user_id', $userId)->where('status_pembayaran', 'paid')->count(),
             'unpaid' => Pmb::query()->where('user_id', $userId)->where('status_pembayaran', 'unpaid')->count(),
         ];
+
+        if ($summary['total'] === 0) {
+            return redirect()
+                ->route('pmb.index')
+                ->with('error', 'Lengkapi pendaftaran PMB terlebih dahulu sebelum membuka halaman pembayaran.');
+        }
 
         $items = Pmb::query()
             ->where('user_id', $userId)
