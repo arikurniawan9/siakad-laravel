@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { useMemo } from 'react';
 
 function toTextList(values = []) {
     return Array.isArray(values) ? values.join('\n') : '';
@@ -58,6 +59,21 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
         hero_layout: content?.hero_layout || 'two-column',
         news_items: Array.isArray(content?.news_items) ? content.news_items : [],
     });
+
+    const contentChecklist = useMemo(() => {
+        const checks = [
+            { label: 'Nama kampus', ok: String(form.data.campus_name || '').trim().length >= 4 },
+            { label: 'Hero title', ok: String(form.data.hero_title || '').trim().length >= 12 },
+            { label: 'Hero subtitle', ok: String(form.data.hero_subtitle || '').trim().length >= 40 },
+            { label: 'Menu navbar', ok: Array.isArray(form.data.nav_menus) && form.data.nav_menus.length >= 3 },
+            { label: 'Slider informasi', ok: Array.isArray(form.data.slider_items) && form.data.slider_items.length >= 1 },
+            { label: 'Program studi', ok: fromTextList(form.data.programs_text || '').length >= 3 },
+            { label: 'Berita kampus', ok: Array.isArray(form.data.news_items) && form.data.news_items.length >= 3 },
+            { label: 'Kontak email/telepon', ok: !!String(form.data.email || '').trim() || !!String(form.data.phone || '').trim() },
+        ];
+        const passed = checks.filter((item) => item.ok).length;
+        return { checks, passed, total: checks.length };
+    }, [form.data]);
 
     const save = () => {
         form.transform((data) => ({
@@ -168,6 +184,25 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
                 </section>
 
                 {flash?.success && <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">{flash.success}</p>}
+
+                <section className="panel p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900">Kesiapan Publish</h3>
+                            <p className="mt-1 text-xs text-slate-500">Checklist kualitas konten untuk landing page production-ready.</p>
+                        </div>
+                        <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                            {contentChecklist.passed}/{contentChecklist.total} lengkap
+                        </div>
+                    </div>
+                    <div className="mt-3 grid gap-2 md:grid-cols-2">
+                        {contentChecklist.checks.map((item) => (
+                            <div key={item.label} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${item.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                                {item.ok ? 'OK' : 'Perlu cek'}: {item.label}
+                            </div>
+                        ))}
+                    </div>
+                </section>
 
                 <section className="panel p-5">
                     <h3 className="text-sm font-bold text-slate-900">Identitas & Hero</h3>
