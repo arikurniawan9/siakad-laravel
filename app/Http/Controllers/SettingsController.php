@@ -356,6 +356,15 @@ class SettingsController extends Controller
 
         $search = trim((string) $request->string('search'));
         $limit = min(max((int) $request->integer('limit', 50), 5), 200);
+        $sortBy = (string) $request->string('sort_by', 'created_at');
+        $sortDir = (string) $request->string('sort_dir', 'desc');
+        $allowedSorts = ['created_at', 'amount', 'status', 'provider', 'order_id'];
+        if (! in_array($sortBy, $allowedSorts, true)) {
+            $sortBy = 'created_at';
+        }
+        if (! in_array($sortDir, ['asc', 'desc'], true)) {
+            $sortDir = 'desc';
+        }
 
         $query = FinanceReconciliation::query()
             ->with([
@@ -367,8 +376,19 @@ class SettingsController extends Controller
                 $q->where('order_id', 'like', "%{$search}%")
                     ->orWhere('transaction_id', 'like', "%{$search}%")
                     ->orWhereHas('tagihan', fn ($t) => $t->where('kode_tagihan', 'like', "%{$search}%"));
-            })
-            ->latest('created_at')
+            });
+
+        if ($sortBy === 'status') {
+            $query->orderByRaw("FIELD(status, 'pending', 'resolved', 'ignored')");
+            if ($sortDir === 'desc') {
+                $query->reorder()->orderByRaw("FIELD(status, 'ignored', 'resolved', 'pending')");
+            }
+        } else {
+            $query->orderBy($sortBy, $sortDir);
+        }
+
+        $query
+            ->orderBy('id', 'desc')
             ->limit($limit);
 
         $items = $query->get();
@@ -378,6 +398,8 @@ class SettingsController extends Controller
                 'status' => $status,
                 'search' => $search,
                 'limit' => $limit,
+                'sort_by' => $sortBy,
+                'sort_dir' => $sortDir,
             ],
             'items' => $items->map(fn (FinanceReconciliation $item) => [
                 'id' => $item->id,
@@ -423,16 +445,36 @@ class SettingsController extends Controller
 
         $search = trim((string) $request->string('search'));
         $limit = min(max((int) $request->integer('limit', 500), 1), 5000);
+        $sortBy = (string) $request->string('sort_by', 'created_at');
+        $sortDir = (string) $request->string('sort_dir', 'desc');
+        $allowedSorts = ['created_at', 'amount', 'status', 'provider', 'order_id'];
+        if (! in_array($sortBy, $allowedSorts, true)) {
+            $sortBy = 'created_at';
+        }
+        if (! in_array($sortDir, ['asc', 'desc'], true)) {
+            $sortDir = 'desc';
+        }
 
-        $rows = FinanceReconciliation::query()
+        $query = FinanceReconciliation::query()
             ->with(['tagihan:id,kode_tagihan,tahun_akademik,semester_akademik', 'resolvedBy:id,name'])
             ->when($status !== 'all', fn ($q) => $q->where('status', $status))
             ->when($search !== '', function ($q) use ($search) {
                 $q->where('order_id', 'like', "%{$search}%")
                     ->orWhere('transaction_id', 'like', "%{$search}%")
                     ->orWhereHas('tagihan', fn ($t) => $t->where('kode_tagihan', 'like', "%{$search}%"));
-            })
-            ->latest('created_at')
+            });
+
+        if ($sortBy === 'status') {
+            $query->orderByRaw("FIELD(status, 'pending', 'resolved', 'ignored')");
+            if ($sortDir === 'desc') {
+                $query->reorder()->orderByRaw("FIELD(status, 'ignored', 'resolved', 'pending')");
+            }
+        } else {
+            $query->orderBy($sortBy, $sortDir);
+        }
+
+        $rows = $query
+            ->orderBy('id', 'desc')
             ->limit($limit)
             ->get();
 

@@ -127,6 +127,9 @@ function PendingBillCard({ tagihan }) {
 
 export default function Page({ auth, stats, transactionStats = null, recentTransaksis = [], recentTagihans = [] }) {
     const { menu } = usePage().props;
+    const pendingOver24h = transactionStats?.reconciliation_pending_over_24h ?? 0;
+    const oldestPendingHours = transactionStats?.reconciliation_oldest_pending_hours ?? 0;
+    const shouldShowSlaWarning = pendingOver24h > 0;
 
     const cards = [
         { label: 'Total Tagihan', value: stats?.total_tagihan || 0 },
@@ -135,7 +138,7 @@ export default function Page({ auth, stats, transactionStats = null, recentTrans
     ];
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Keuangan - Dashboard</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Keuangan - Dashboard" />
 
             <ModuleHero
@@ -144,6 +147,23 @@ export default function Page({ auth, stats, transactionStats = null, recentTrans
                 description="Ringkasan tagihan, status pembayaran, dan nominal yang sedang diproses dalam sistem."
                 note={`Total tagihan aktif: ${stats?.total_tagihan || 0}`}
             />
+
+            {shouldShowSlaWarning ? (
+                <section className="panel border-rose-200 bg-rose-50 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">SLA Rekonsiliasi</p>
+                            <p className="mt-1 text-sm font-bold text-rose-900">
+                                {pendingOver24h} item pending lebih dari 24 jam, oldest {oldestPendingHours} jam.
+                            </p>
+                            <p className="mt-1 text-xs text-rose-700">Prioritaskan penyelesaian agar data transaksi dan buku kas tetap sinkron.</p>
+                        </div>
+                        <Link href={route('settings.finance-reconciliation.index', { status: 'pending' })} className="btn-outline border-rose-300 bg-white text-rose-700 hover:bg-rose-100">
+                            Tinjau Rekonsiliasi
+                        </Link>
+                    </div>
+                </section>
+            ) : null}
 
             <div className="grid gap-4 xl:grid-cols-3">
                 {cards.map((item) => (

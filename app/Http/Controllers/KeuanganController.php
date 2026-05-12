@@ -40,6 +40,21 @@ class KeuanganController extends Controller
             'failed' => Transaksi::query()->whereIn('status', ['failed', 'expired', 'cancelled'])->count(),
             'nominal_success' => (float) Transaksi::query()->where('status', 'success')->sum('gross_amount'),
             'nominal_pending' => (float) Transaksi::query()->where('status', 'pending')->sum('gross_amount'),
+            'reconciliation_pending' => FinanceReconciliation::query()->where('status', 'pending')->count(),
+            'reconciliation_pending_over_24h' => FinanceReconciliation::query()
+                ->where('status', 'pending')
+                ->where('created_at', '<=', now()->subHours(24))
+                ->count(),
+            'reconciliation_oldest_pending_hours' => (int) floor(
+                now()->diffInSeconds(
+                    optional(
+                        FinanceReconciliation::query()
+                            ->where('status', 'pending')
+                            ->oldest('created_at')
+                            ->first()
+                    )->created_at ?? now()
+                ) / 3600
+            ),
         ];
 
         $recentTransaksis = Transaksi::query()

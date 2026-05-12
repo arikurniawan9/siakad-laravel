@@ -24,6 +24,8 @@ export default function Page({ auth, items = [], filters = null }) {
     const [status, setStatus] = useState(filters?.status || 'pending');
     const [search, setSearch] = useState(filters?.search || '');
     const [limit, setLimit] = useState(String(filters?.limit || 50));
+    const [sortBy, setSortBy] = useState(filters?.sort_by || 'created_at');
+    const [sortDir, setSortDir] = useState(filters?.sort_dir || 'desc');
 
     const [confirmingAction, setConfirmingAction] = useState(null); // resolve|ignore
     const [selectedItem, setSelectedItem] = useState(null);
@@ -73,13 +75,15 @@ export default function Page({ auth, items = [], filters = null }) {
     };
 
     const applyFilters = () => {
-        router.get(route('settings.finance-reconciliation.index'), { status, search, limit }, { preserveScroll: true, preserveState: true });
+        router.get(route('settings.finance-reconciliation.index'), { status, search, limit, sort_by: sortBy, sort_dir: sortDir }, { preserveScroll: true, preserveState: true });
     };
 
     const resetFilters = () => {
         setStatus('pending');
         setSearch('');
         setLimit('50');
+        setSortBy('created_at');
+        setSortDir('desc');
         router.get(route('settings.finance-reconciliation.index'), {}, { preserveScroll: true, preserveState: true });
     };
 
@@ -167,7 +171,7 @@ export default function Page({ auth, items = [], filters = null }) {
                 {flash?.error && <p className="mb-3 rounded-lg bg-rose-100 px-3 py-2 text-xs font-semibold text-rose-700">{flash.error}</p>}
                 {flash?.success && <p className="mb-3 rounded-lg bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-700">{flash.success}</p>}
 
-                <div className="grid gap-2 md:grid-cols-[180px_minmax(0,1fr)_120px_auto_auto]">
+                <div className="grid gap-2 md:grid-cols-[180px_minmax(0,1fr)_120px_170px_120px_auto_auto]">
                     <select className="form-input" value={status} onChange={(e) => setStatus(e.target.value)}>
                         <option value="pending">pending</option>
                         <option value="resolved">resolved</option>
@@ -187,6 +191,17 @@ export default function Page({ auth, items = [], filters = null }) {
                         <option value="100">100</option>
                         <option value="200">200</option>
                     </select>
+                    <select className="form-input" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                        <option value="created_at">Waktu</option>
+                        <option value="amount">Nominal</option>
+                        <option value="status">Status</option>
+                        <option value="provider">Provider</option>
+                        <option value="order_id">Order ID</option>
+                    </select>
+                    <select className="form-input" value={sortDir} onChange={(e) => setSortDir(e.target.value)}>
+                        <option value="desc">Terbaru / terbesar</option>
+                        <option value="asc">Terlama / terkecil</option>
+                    </select>
                     <button type="button" className="btn-primary" onClick={applyFilters}>
                         Terapkan
                     </button>
@@ -196,7 +211,7 @@ export default function Page({ auth, items = [], filters = null }) {
                 </div>
                 <div className="mt-3 flex justify-end">
                     <a
-                        href={route('settings.finance-reconciliation.export.csv', { status, search, limit })}
+                        href={route('settings.finance-reconciliation.export.csv', { status, search, limit, sort_by: sortBy, sort_dir: sortDir })}
                         className="btn-outline"
                     >
                         Export CSV
