@@ -123,7 +123,7 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
     const [draftLoaded, setDraftLoaded] = useState(false);
     const [draftNotice, setDraftNotice] = useState('');
     const [draftSavedAt, setDraftSavedAt] = useState('');
-    const form = useForm({
+    const initialFormData = {
         prodi_id: '',
         gelombang: 'Gelombang 1',
         nama_lengkap: auth.user.name || '',
@@ -133,7 +133,8 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
         dokumen_ktp: null,
         dokumen_ijazah: null,
         dokumen_foto: null,
-    });
+    };
+    const form = useForm(initialFormData);
     const draftStorageKey = `pmb-draft:${auth.user?.id || auth.user?.email || 'guest'}`;
     const draftFields = ['prodi_id', 'gelombang', 'nama_lengkap', 'email', 'phone', 'asal_sekolah'];
 
@@ -272,6 +273,17 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
         setStepError('');
     };
 
+    const resetDraft = () => {
+        form.setData({ ...initialFormData });
+        setFormStep(1);
+        setStepError('');
+        setDraftNotice('Draft PMB telah dihapus dari perangkat ini.');
+        setDraftSavedAt('');
+        if (typeof window !== 'undefined') {
+            window.localStorage.removeItem(draftStorageKey);
+        }
+    };
+
     const selectedProdi = useMemo(
         () => prodis.find((item) => String(item.id) === String(form.data.prodi_id)) || null,
         [form.data.prodi_id, prodis],
@@ -306,6 +318,12 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
         { label: 'KTP', value: fileLabel(form.data.dokumen_ktp) },
         { label: 'Ijazah', value: fileLabel(form.data.dokumen_ijazah) },
         { label: 'Pas Foto', value: fileLabel(form.data.dokumen_foto) },
+    ];
+
+    const stepStatus = [
+        { step: 1, title: 'Gelombang & Prodi', done: isStepValid(1) },
+        { step: 2, title: 'Identitas Pendaftar', done: isStepValid(2) },
+        { step: 3, title: 'Upload Dokumen', done: isStepValid(3) },
     ];
 
     const stats = [
@@ -599,10 +617,30 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
                                 </div>
                             ))}
                         </div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                            {stepStatus.map((item) => (
+                                <div
+                                    key={item.step}
+                                    className={`rounded-xl border px-3 py-2 text-[11px] font-semibold ${
+                                        formStep === item.step
+                                            ? 'border-sky-300 bg-sky-50 text-sky-700'
+                                            : item.done
+                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                : 'border-slate-200 bg-white text-slate-500'
+                                    }`}
+                                >
+                                    <p className="text-[10px] uppercase tracking-[0.14em]">Tahap {item.step}</p>
+                                    <p className="mt-1">{item.title}</p>
+                                </div>
+                            ))}
+                        </div>
                         <div className="mt-3 rounded-xl border border-dashed border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-500">
                             <p>Langkah aktif: Tahap {formStep} dari 3</p>
                             <p className="mt-1">Draft terakhir: {formatTimestamp(draftSavedAt)}</p>
                         </div>
+                        <button type="button" className="btn-outline mt-3 w-full" onClick={resetDraft}>
+                            Reset Draft
+                        </button>
                     </div>
 
                     <div className="mt-4 space-y-3">
