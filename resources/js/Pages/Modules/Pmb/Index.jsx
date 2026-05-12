@@ -120,6 +120,8 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
     const [verificationPerPage, setVerificationPerPage] = useState(String(verificationFilters?.per_page || 10));
     const [formStep, setFormStep] = useState(1);
     const [stepError, setStepError] = useState('');
+    const [draftLoaded, setDraftLoaded] = useState(false);
+    const [draftNotice, setDraftNotice] = useState('');
     const form = useForm({
         prodi_id: '',
         gelombang: 'Gelombang 1',
@@ -131,6 +133,69 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
         dokumen_ijazah: null,
         dokumen_foto: null,
     });
+    const draftStorageKey = `pmb-draft:${auth.user?.id || auth.user?.email || 'guest'}`;
+    const draftFields = ['prodi_id', 'gelombang', 'nama_lengkap', 'email', 'phone', 'asal_sekolah'];
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        try {
+            const raw = window.localStorage.getItem(draftStorageKey);
+            if (!raw) {
+                setDraftLoaded(true);
+                return;
+            }
+
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+                const nextData = {};
+                draftFields.forEach((field) => {
+                    if (parsed.data && Object.prototype.hasOwnProperty.call(parsed.data, field)) {
+                        nextData[field] = parsed.data[field];
+                    }
+                });
+
+                form.setData((current) => ({
+                    ...current,
+                    ...nextData,
+                }));
+
+                if (Number.isInteger(parsed.step) && parsed.step >= 1 && parsed.step <= 3) {
+                    setFormStep(parsed.step);
+                }
+
+                setDraftNotice('Draft PMB terakhir berhasil dimuat dari perangkat ini.');
+            }
+        } catch {
+            window.localStorage.removeItem(draftStorageKey);
+        } finally {
+            setDraftLoaded(true);
+        }
+    }, [auth.user?.email, auth.user?.id, draftStorageKey]);
+
+    useEffect(() => {
+        if (!draftLoaded || typeof window === 'undefined') {
+            return undefined;
+        }
+
+        const timer = window.setTimeout(() => {
+            const payload = {
+                step: formStep,
+                data: draftFields.reduce((acc, field) => {
+                    acc[field] = form.data[field];
+                    return acc;
+                }, {}),
+                updated_at: new Date().toISOString(),
+            };
+
+            window.localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+            setDraftNotice('Draft PMB tersimpan otomatis pada perangkat ini.');
+        }, 350);
+
+        return () => window.clearTimeout(timer);
+    }, [draftLoaded, draftStorageKey, form.data, formStep]);
 
     const submit = (e) => {
         e.preventDefault();
@@ -145,6 +210,10 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
                 form.reset('prodi_id', 'gelombang', 'phone', 'asal_sekolah', 'dokumen_ktp', 'dokumen_ijazah', 'dokumen_foto');
                 setFormStep(1);
                 setStepError('');
+                setDraftNotice('');
+                if (typeof window !== 'undefined') {
+                    window.localStorage.removeItem(draftStorageKey);
+                }
             },
         });
     };
@@ -360,7 +429,12 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
                                 </button>
                             ))}
                         </div>
+                        <p className="mt-3 text-[11px] text-slate-500">
+                            Draft tersimpan otomatis di perangkat ini. File upload perlu dipilih ulang jika halaman dimuat ulang.
+                        </p>
                     </div>
+
+                    {draftNotice ? <p className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700">{draftNotice}</p> : null}
 
                     {formStep === 1 && (
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
