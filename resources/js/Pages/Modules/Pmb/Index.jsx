@@ -168,6 +168,14 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
         return fields.every((field) => isFieldFilled(field));
     };
 
+    const fileLabel = (file) => {
+        if (!file) {
+            return 'Belum ada file';
+        }
+
+        return file.name || 'File terpilih';
+    };
+
     const completedSteps = [1, 2, 3].filter((step) => isStepValid(step)).length;
     const progressPercent = Math.round((completedSteps / 3) * 100);
 
@@ -183,6 +191,11 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
     const goPrevStep = () => {
         setStepError('');
         setFormStep((prev) => Math.max(1, prev - 1));
+    };
+
+    const clearDocument = (field) => {
+        form.setData(field, null);
+        setStepError('');
     };
 
     const stats = [
@@ -390,17 +403,35 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
                             <div>
                                 <label className="label">Dokumen KTP</label>
-                                <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_ktp', e.target.files?.[0] || null)} />
+                                <input key={`dokumen-ktp-${form.data.dokumen_ktp?.name || 'empty'}`} type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_ktp', e.target.files?.[0] || null)} />
+                                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                    <span className="truncate font-semibold">{fileLabel(form.data.dokumen_ktp)}</span>
+                                    <button type="button" className="font-bold text-sky-700 hover:text-sky-800" onClick={() => clearDocument('dokumen_ktp')}>
+                                        Hapus
+                                    </button>
+                                </div>
                                 <p className="mt-1 text-[11px] text-slate-500">Format disarankan: PDF / JPG / PNG.</p>
                             </div>
                             <div>
                                 <label className="label">Dokumen Ijazah</label>
-                                <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_ijazah', e.target.files?.[0] || null)} />
+                                <input key={`dokumen-ijazah-${form.data.dokumen_ijazah?.name || 'empty'}`} type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_ijazah', e.target.files?.[0] || null)} />
+                                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                    <span className="truncate font-semibold">{fileLabel(form.data.dokumen_ijazah)}</span>
+                                    <button type="button" className="font-bold text-sky-700 hover:text-sky-800" onClick={() => clearDocument('dokumen_ijazah')}>
+                                        Hapus
+                                    </button>
+                                </div>
                                 <p className="mt-1 text-[11px] text-slate-500">Format disarankan: PDF / JPG / PNG.</p>
                             </div>
                             <div className="md:col-span-2">
                                 <label className="label">Pas Foto</label>
-                                <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_foto', e.target.files?.[0] || null)} />
+                                <input key={`dokumen-foto-${form.data.dokumen_foto?.name || 'empty'}`} type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_foto', e.target.files?.[0] || null)} />
+                                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                    <span className="truncate font-semibold">{fileLabel(form.data.dokumen_foto)}</span>
+                                    <button type="button" className="font-bold text-sky-700 hover:text-sky-800" onClick={() => clearDocument('dokumen_foto')}>
+                                        Hapus
+                                    </button>
+                                </div>
                                 <p className="mt-1 text-[11px] text-slate-500">Gunakan foto formal dengan latar yang jelas.</p>
                             </div>
                         </div>
