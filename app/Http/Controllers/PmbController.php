@@ -213,6 +213,15 @@ class PmbController extends Controller
     public function createSnap(Pmb $pmb): RedirectResponse
     {
         abort_unless($pmb->user_id === auth()->id(), 403);
+
+        if ($pmb->status_pembayaran === 'paid') {
+            return redirect()->route('pmb.payment')->with('success', 'Pembayaran PMB ini sudah lunas.');
+        }
+
+        if (! $this->isPmbReadyForPayment($pmb)) {
+            return redirect()->route('pmb.index')->with('error', 'Lengkapi data dan dokumen PMB sebelum membuat pembayaran.');
+        }
+
         if ($this->gatewayConfigService->activeProvider() !== 'midtrans') {
             return redirect()->route('pmb.payment')->with('error', 'Provider aktif bukan Midtrans. Ubah dulu di Settings > Payment Gateway.');
         }
@@ -222,8 +231,11 @@ class PmbController extends Controller
         }
 
         $fee = (int) config('siakad.pmb_registration_fee');
+        $snapCreated = false;
+        $snapAlreadyAvailable = false;
+        $tagihanAlreadyPaid = false;
 
-        DB::transaction(function () use ($pmb, $fee) {
+        DB::transaction(function () use ($pmb, $fee, &$snapCreated, &$snapAlreadyAvailable, &$tagihanAlreadyPaid) {
             $tagihan = Tagihan::query()->firstOrCreate(
                 ['pmb_id' => $pmb->id, 'jenis' => 'pmb_pendaftaran'],
                 [
@@ -238,6 +250,18 @@ class PmbController extends Controller
             );
 
             if ($tagihan->status === 'paid') {
+                $tagihanAlreadyPaid = true;
+                return;
+            }
+
+            $pendingTransaction = $tagihan->transaksis()
+                ->where('status', 'pending')
+                ->whereNotNull('snap_token')
+                ->latest()
+                ->first();
+
+            if ($pendingTransaction) {
+                $snapAlreadyAvailable = true;
                 return;
             }
 
@@ -285,9 +309,30 @@ class PmbController extends Controller
                 'snap_token' => $snapToken,
                 'payload' => $payload,
             ]);
+
+            $snapCreated = true;
         });
 
+        if ($snapAlreadyAvailable && ! $snapCreated) {
+            return redirect()->route('pmb.payment')->with('success', 'Pembayaran PMB sudah tersedia. Silakan lanjutkan pembayaran.');
+        }
+
+        if ($tagihanAlreadyPaid) {
+            return redirect()->route('pmb.payment')->with('success', 'Tagihan PMB ini sudah lunas.');
+        }
+
         return redirect()->route('pmb.payment')->with('success', 'Transaksi Midtrans berhasil dibuat.');
+    }
+
+    private function isPmbReadyForPayment(Pmb $pmb): bool
+    {
+        foreach (['prodi_id', 'gelombang', 'nama_lengkap', 'email', 'phone', 'asal_sekolah', 'dokumen_ktp', 'dokumen_ijazah', 'dokumen_foto'] as $field) {
+            if (blank($pmb->{$field})) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function updateVerification(Pmb $pmb): RedirectResponse
