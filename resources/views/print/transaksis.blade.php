@@ -16,7 +16,8 @@
     <h1>Data Transaksi</h1>
     <div class="meta">
         Search: {{ $filters['search'] ?: '-' }} |
-        Status: {{ $filters['status'] ?: 'all' }}
+        Status: {{ $filters['status'] ?: 'all' }} |
+        Rekonsiliasi: {{ $filters['reconciliation'] ?: 'all' }}
     </div>
 
     <table>

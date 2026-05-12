@@ -350,7 +350,16 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                             <p className="mt-1 text-xs text-slate-500">Daftar transaksi terbaru yang diterima sistem pembayaran.</p>
                         </div>
                         <div className="flex items-center gap-2">
-                            <a href={route('keuangan.transaksi.pdf', { search, status: statusFilter, sort_by: sortBy, sort_dir: sortDir })} className="btn-outline">
+                            <a
+                                href={route('keuangan.transaksi.pdf', {
+                                    search,
+                                    status: statusFilter,
+                                    reconciliation: reconciliationFilter,
+                                    sort_by: sortBy,
+                                    sort_dir: sortDir,
+                                })}
+                                className="btn-outline"
+                            >
                                 Export PDF
                             </a>
                             <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{transaksis.meta?.total ?? 0} record</div>
@@ -434,7 +443,12 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                                     </tr>
                                 )}
                                 {transaksis.data.map((trx) => (
-                                    <tr key={trx.id} className="border-t border-slate-100 align-top">
+                                    <tr
+                                        key={trx.id}
+                                        className={`border-t align-top ${
+                                            trx.reconciliation ? 'border-rose-200 bg-rose-50/40' : 'border-slate-100'
+                                        }`}
+                                    >
                                         <td className="px-3 py-3 font-medium text-slate-700">{trx.order_id}</td>
                                         <td className="px-3 py-3 text-slate-600">
                                             <div>{trx.mahasiswa?.nama || '-'}</div>
