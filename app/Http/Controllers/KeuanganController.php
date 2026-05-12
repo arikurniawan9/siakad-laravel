@@ -145,6 +145,7 @@ class KeuanganController extends Controller
         $perPage = in_array($perPage, [10, 30, 50, 100], true) ? $perPage : 10;
         $search = trim((string) $request->string('search'));
         $status = (string) $request->string('status', 'all');
+        $reconciliation = (string) $request->string('reconciliation', 'all');
         $sortBy = (string) $request->string('sort_by', 'latest');
         $sortDir = (string) $request->string('sort_dir', 'desc');
         $allowedSorts = ['latest', 'kode_tagihan', 'jenis', 'tahun_akademik', 'total', 'status'];
@@ -564,6 +565,14 @@ class KeuanganController extends Controller
         $query = Transaksi::query()
             ->with(['tagihan:id,mahasiswa_id,kode_tagihan,jenis,total,status', 'tagihan.mahasiswa:id,nim,nama'])
             ->when($status !== 'all', fn ($query) => $query->where('status', $status))
+            ->when($reconciliation === 'pending', function ($query) {
+                $query->whereExists(function ($sub) {
+                    $sub->selectRaw('1')
+                        ->from('finance_reconciliations')
+                        ->whereColumn('finance_reconciliations.transaksi_id', 'transaksis.id')
+                        ->where('finance_reconciliations.status', 'pending');
+                });
+            })
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($subQuery) use ($search) {
                     $subQuery
@@ -614,6 +623,7 @@ class KeuanganController extends Controller
             'filters' => [
                 'search' => $search,
                 'status' => $status,
+                'reconciliation' => $reconciliation,
                 'per_page' => $perPage,
                 'sort_by' => $sortBy,
                 'sort_dir' => $sortDir,

@@ -157,6 +157,14 @@ function TransactionCard({ trx, onCopy, onDetail }) {
                     Salin TX
                 </ActionButton>
                 <ActionButton onClick={() => onDetail(trx)}>Detail</ActionButton>
+                {trx.reconciliation ? (
+                    <a
+                        href={route('settings.finance-reconciliation.index', { status: 'pending', search: trx.order_id })}
+                        className="rounded-lg border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-[11px] font-semibold text-fuchsia-700 hover:bg-fuchsia-100"
+                    >
+                        Buka Rekonsiliasi
+                    </a>
+                ) : null}
                 {trx.snap_redirect_url ? (
                     <a
                         href={trx.snap_redirect_url}
@@ -184,6 +192,7 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
     const { menu } = usePage().props;
     const [search, setSearch] = useState(filters?.search || '');
     const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
+    const [reconciliationFilter, setReconciliationFilter] = useState(filters?.reconciliation || 'all');
     const [perPage, setPerPage] = useState(String(filters?.per_page || 10));
     const [sortBy, setSortBy] = useState(filters?.sort_by || 'latest');
     const [sortDir, setSortDir] = useState(filters?.sort_dir || 'desc');
@@ -203,6 +212,7 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
         const params = {
             search,
             status: statusFilter,
+            reconciliation: reconciliationFilter,
             per_page: perPage,
             sort_by: sortBy,
             sort_dir: sortDir,
@@ -219,6 +229,7 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
     const resetFilters = () => {
         setSearch('');
         setStatusFilter('all');
+        setReconciliationFilter('all');
         setPerPage('10');
         setSortBy('latest');
         setSortDir('desc');
@@ -237,6 +248,7 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                 {
                     search,
                     status: statusFilter,
+                    reconciliation: reconciliationFilter,
                     per_page: perPage,
                     sort_by: sortBy,
                     sort_dir: sortDir,
@@ -345,7 +357,7 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                         </div>
                     </div>
 
-                    <div className="mt-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_180px_120px_170px_120px_auto_auto]">
+                    <div className="mt-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_180px_190px_120px_170px_120px_auto_auto]">
                         <input
                             className="form-input"
                             placeholder="Cari order, mahasiswa, invoice, metode"
@@ -360,6 +372,10 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                             <option value="failed">Failed</option>
                             <option value="expired">Expired</option>
                             <option value="cancelled">Cancelled</option>
+                        </select>
+                        <select className="form-input" value={reconciliationFilter} onChange={(e) => setReconciliationFilter(e.target.value)}>
+                            <option value="all">Semua rekonsiliasi</option>
+                            <option value="pending">Hanya perlu rekonsiliasi</option>
                         </select>
                         <select className="form-input" value={perPage} onChange={(e) => setPerPage(e.target.value)}>
                             <option value="10">10 / halaman</option>
@@ -455,6 +471,14 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                                                     Salin TX
                                                 </ActionButton>
                                                 <ActionButton onClick={() => setSelectedTransaction(trx)}>Detail</ActionButton>
+                                                {trx.reconciliation ? (
+                                                    <a
+                                                        href={route('settings.finance-reconciliation.index', { status: 'pending', search: trx.order_id })}
+                                                        className="rounded-lg border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-[11px] font-semibold text-fuchsia-700 hover:bg-fuchsia-100"
+                                                    >
+                                                        Rekonsiliasi
+                                                    </a>
+                                                ) : null}
                                                 {trx.snap_redirect_url ? (
                                                     <a
                                                         href={trx.snap_redirect_url}
@@ -572,6 +596,14 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                                             >
                                                 Buka Tagihan
                                             </Link>
+                                        ) : null}
+                                        {selectedTransaction.reconciliation ? (
+                                            <a
+                                                href={route('settings.finance-reconciliation.index', { status: 'pending', search: selectedTransaction.order_id })}
+                                                className="rounded-lg border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-[11px] font-semibold text-fuchsia-700 hover:bg-fuchsia-100"
+                                            >
+                                                Buka Rekonsiliasi
+                                            </a>
                                         ) : null}
                                     </div>
                                 </div>
