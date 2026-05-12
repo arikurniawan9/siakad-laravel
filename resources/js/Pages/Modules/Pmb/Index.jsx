@@ -143,9 +143,15 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
             return;
         }
 
+        const queryStep = Number(new URLSearchParams(window.location.search).get('step'));
+        const hasQueryStep = Number.isInteger(queryStep) && queryStep >= 1 && queryStep <= 3;
+
         try {
             const raw = window.localStorage.getItem(draftStorageKey);
             if (!raw) {
+                if (hasQueryStep) {
+                    setFormStep(queryStep);
+                }
                 setDraftLoaded(true);
                 return;
             }
@@ -164,7 +170,9 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
                     ...nextData,
                 }));
 
-                if (Number.isInteger(parsed.step) && parsed.step >= 1 && parsed.step <= 3) {
+                if (hasQueryStep) {
+                    setFormStep(queryStep);
+                } else if (Number.isInteger(parsed.step) && parsed.step >= 1 && parsed.step <= 3) {
                     setFormStep(parsed.step);
                 }
 

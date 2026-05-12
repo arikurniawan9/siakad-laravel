@@ -199,6 +199,7 @@ class PmbController extends Controller
                     'payment_ready' => $readiness['ready'],
                     'payment_blockers' => $readiness['blockers'],
                     'payment_checks' => $readiness['checks'],
+                    'payment_target_step' => $readiness['target_step'],
                 ];
             });
 
@@ -357,7 +358,29 @@ class PmbController extends Controller
             'ready' => count($blockers) === 0,
             'blockers' => $blockers,
             'checks' => $checks,
+            'target_step' => $this->firstIncompletePmbStep($checks),
         ];
+    }
+
+    private function firstIncompletePmbStep(array $checks): int
+    {
+        $stepFields = [
+            1 => ['prodi_id', 'gelombang'],
+            2 => ['nama_lengkap', 'email', 'phone', 'asal_sekolah'],
+            3 => ['dokumen_ktp', 'dokumen_ijazah', 'dokumen_foto'],
+        ];
+
+        $checksByField = collect($checks)->keyBy('field');
+
+        foreach ($stepFields as $step => $fields) {
+            foreach ($fields as $field) {
+                if (! (bool) ($checksByField->get($field)['ok'] ?? false)) {
+                    return $step;
+                }
+            }
+        }
+
+        return 3;
     }
 
     public function updateVerification(Pmb $pmb): RedirectResponse

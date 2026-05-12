@@ -26,6 +26,7 @@ function PmbCard({ item, registrationFee, onCreateSnap, onPayNow, midtransEnable
     const paymentReady = item.payment_ready !== false;
     const blockers = Array.isArray(item.payment_blockers) ? item.payment_blockers : [];
     const checks = Array.isArray(item.payment_checks) ? item.payment_checks : [];
+    const targetStep = Number.isInteger(item.payment_target_step) ? item.payment_target_step : 1;
     const canCreatePayment = !item.snap_token && !isPaid;
     const canPay = item.snap_token && !isPaid;
     const createDisabled = !midtransEnabled || !paymentReady;
@@ -101,6 +102,11 @@ function PmbCard({ item, registrationFee, onCreateSnap, onPayNow, midtransEnable
                     <span className="inline-flex items-center rounded-xl bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700">
                         Pembayaran sudah lunas
                     </span>
+                )}
+                {!paymentReady && !isPaid && (
+                    <Link href={route('pmb.index', { step: targetStep })} className="btn-outline">
+                        Lengkapi Data PMB
+                    </Link>
                 )}
                 <Link href={route('pmb.index')} className="btn-outline">
                     Kembali
