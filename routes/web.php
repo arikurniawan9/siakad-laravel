@@ -5,6 +5,7 @@ use App\Http\Controllers\DosenController;
 use App\Http\Controllers\DosenImportController;
 use App\Http\Controllers\DosenRelasiController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DuitkuCallbackController;
 use App\Http\Controllers\JenisPembayaranController;
 use App\Http\Controllers\KeuanganController;
 use App\Http\Controllers\KeuanganSetupController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\PmbController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserAccessController;
+use App\Http\Controllers\XenditCallbackController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -128,12 +130,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::middleware(['role:super-admin,admin'])->group(function () {
             Route::get('/keuangan/setup-tarif', [KeuanganSetupController::class, 'index'])->name('keuangan.setup.index');
-            Route::post('/keuangan/setup-tarif/jenis-tagihan', [KeuanganSetupController::class, 'storeJenisTagihan'])->middleware('action:action.create')->name('keuangan.setup.jenis-tagihan.store');
-            Route::put('/keuangan/setup-tarif/jenis-tagihan/{jenisTagihan}', [KeuanganSetupController::class, 'updateJenisTagihan'])->middleware('action:action.update')->name('keuangan.setup.jenis-tagihan.update');
-            Route::delete('/keuangan/setup-tarif/jenis-tagihan/{jenisTagihan}', [KeuanganSetupController::class, 'destroyJenisTagihan'])->middleware('action:action.delete')->name('keuangan.setup.jenis-tagihan.destroy');
+            Route::post('/keuangan/setup-tarif/jenis-tagihan', [KeuanganSetupController::class, 'storeJenisTagihan'])->name('keuangan.setup.jenis-tagihan.store');
+            Route::put('/keuangan/setup-tarif/jenis-tagihan/{jenisTagihan}', [KeuanganSetupController::class, 'updateJenisTagihan'])->name('keuangan.setup.jenis-tagihan.update');
+            Route::delete('/keuangan/setup-tarif/jenis-tagihan/{jenisTagihan}', [KeuanganSetupController::class, 'destroyJenisTagihan'])->name('keuangan.setup.jenis-tagihan.destroy');
 
-            Route::post('/keuangan/setup-tarif/tarif', [KeuanganSetupController::class, 'storeTarif'])->middleware('action:action.create')->name('keuangan.setup.tarif.store');
-            Route::delete('/keuangan/setup-tarif/tarif/{tarifKeuangan}', [KeuanganSetupController::class, 'destroyTarif'])->middleware('action:action.delete')->name('keuangan.setup.tarif.destroy');
+            Route::post('/keuangan/setup-tarif/tarif', [KeuanganSetupController::class, 'storeTarif'])->name('keuangan.setup.tarif.store');
+            Route::post('/keuangan/setup-tarif/tarif/bulk', [KeuanganSetupController::class, 'storeTarifBulk'])->name('keuangan.setup.tarif.bulk');
+            Route::delete('/keuangan/setup-tarif/tarif/{tarifKeuangan}', [KeuanganSetupController::class, 'destroyTarif'])->name('keuangan.setup.tarif.destroy');
         });
     });
 
@@ -187,10 +190,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:super-admin'])->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::get('/settings/database', [SettingsController::class, 'database'])->name('settings.database.index');
+        Route::get('/settings/payment-gateway', [SettingsController::class, 'paymentGateway'])->name('settings.payment-gateway.index');
+        Route::put('/settings/payment-gateway', [SettingsController::class, 'updatePaymentGateway'])->name('settings.payment-gateway.update');
+        Route::post('/settings/payment-gateway/test', [SettingsController::class, 'testPaymentGateway'])->name('settings.payment-gateway.test');
         Route::get('/settings/finance-period-locks', [SettingsController::class, 'financePeriodLocks'])->name('settings.finance-period-locks.index');
         Route::post('/settings/finance-period-locks', [SettingsController::class, 'storeFinancePeriodLock'])->name('settings.finance-period-locks.store');
         Route::delete('/settings/finance-period-locks/{lock}', [SettingsController::class, 'destroyFinancePeriodLock'])->name('settings.finance-period-locks.destroy');
         Route::get('/settings/finance-reconciliation', [SettingsController::class, 'financeReconciliation'])->name('settings.finance-reconciliation.index');
+        Route::patch('/settings/finance-reconciliation/bulk', [SettingsController::class, 'bulkFinanceReconciliation'])->name('settings.finance-reconciliation.bulk');
         Route::patch('/settings/finance-reconciliation/{item}/resolve', [SettingsController::class, 'resolveFinanceReconciliation'])->name('settings.finance-reconciliation.resolve');
         Route::patch('/settings/finance-reconciliation/{item}/ignore', [SettingsController::class, 'ignoreFinanceReconciliation'])->name('settings.finance-reconciliation.ignore');
         Route::get('/settings/user-access', [UserAccessController::class, 'index'])->name('settings.user-access.index');
@@ -222,6 +229,8 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::post('/payments/midtrans/callback', MidtransCallbackController::class)->name('payments.midtrans.callback');
+Route::post('/payments/xendit/callback', XenditCallbackController::class)->name('payments.xendit.callback');
+Route::post('/payments/duitku/callback', DuitkuCallbackController::class)->name('payments.duitku.callback');
 
 require __DIR__.'/auth.php';
 

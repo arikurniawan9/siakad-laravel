@@ -27,6 +27,7 @@ export default function Page({ auth, items = [], filters = null }) {
 
     const [confirmingAction, setConfirmingAction] = useState(null); // resolve|ignore
     const [selectedItem, setSelectedItem] = useState(null);
+    const [selectedIds, setSelectedIds] = useState([]);
     const notesForm = useForm({ resolution_notes: '' });
 
     const summary = useMemo(() => {
@@ -70,8 +71,40 @@ export default function Page({ auth, items = [], filters = null }) {
         });
     };
 
+    const pendingItems = useMemo(() => items.filter((item) => item.status === 'pending'), [items]);
+    const allPendingSelected = pendingItems.length > 0 && pendingItems.every((item) => selectedIds.includes(item.id));
+
+    const toggleSelectAllPending = () => {
+        if (allPendingSelected) {
+            setSelectedIds([]);
+            return;
+        }
+        setSelectedIds(pendingItems.map((item) => item.id));
+    };
+
+    const toggleSelectItem = (id) => {
+        setSelectedIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
+    };
+
+    const bulkSubmit = (action) => {
+        if (selectedIds.length === 0) return;
+        if (!window.confirm(`Proses ${action} untuk ${selectedIds.length} item terpilih?`)) return;
+
+        notesForm.transform((data) => ({
+            ...data,
+            action,
+            item_ids: selectedIds,
+        })).patch(route('settings.finance-reconciliation.bulk'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setSelectedIds([]);
+                notesForm.reset('resolution_notes');
+            },
+        });
+    };
+
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-bold text-slate-900">Rekonsiliasi Keuangan</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Rekonsiliasi Keuangan" />
 
             <ConfirmationModal
@@ -126,11 +159,29 @@ export default function Page({ auth, items = [], filters = null }) {
                         Reset
                     </button>
                 </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <button type="button" className="btn-outline" onClick={toggleSelectAllPending}>
+                        {allPendingSelected ? 'Batal Pilih Semua Pending' : 'Pilih Semua Pending'}
+                    </button>
+                    <button type="button" className="btn-primary" onClick={() => bulkSubmit('resolve')} disabled={selectedIds.length === 0 || notesForm.processing}>
+                        Resolve Terpilih ({selectedIds.length})
+                    </button>
+                    <button type="button" className="btn-outline" onClick={() => bulkSubmit('ignore')} disabled={selectedIds.length === 0 || notesForm.processing}>
+                        Ignore Terpilih
+                    </button>
+                    <input
+                        className="form-input ml-auto max-w-sm"
+                        placeholder="Catatan bulk (opsional)"
+                        value={notesForm.data.resolution_notes}
+                        onChange={(e) => notesForm.setData('resolution_notes', e.target.value)}
+                    />
+                </div>
 
                 <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
                     <table className="min-w-full text-left text-xs">
                         <thead className="bg-slate-50">
                             <tr className="border-b border-slate-200 text-slate-500">
+                                <th className="px-3 py-2">Pilih</th>
                                 <th className="px-3 py-2">Status</th>
                                 <th className="px-3 py-2">Order</th>
                                 <th className="px-3 py-2">Tagihan</th>
@@ -142,13 +193,22 @@ export default function Page({ auth, items = [], filters = null }) {
                         <tbody>
                             {items.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="px-3 py-6 text-center text-slate-500">
+                                    <td colSpan="7" className="px-3 py-6 text-center text-slate-500">
                                         Tidak ada item.
                                     </td>
                                 </tr>
                             ) : (
                                 items.map((item) => (
                                     <tr key={item.id} className="border-b border-slate-100 align-top">
+                                        <td className="px-3 py-2">
+                                            <input
+                                                type="checkbox"
+                                                className="h-4 w-4 rounded border-slate-300"
+                                                disabled={item.status !== 'pending'}
+                                                checked={selectedIds.includes(item.id)}
+                                                onChange={() => toggleSelectItem(item.id)}
+                                            />
+                                        </td>
                                         <td className="px-3 py-2">
                                             <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${statusBadge[item.status] || 'bg-slate-100 text-slate-700'}`}>
                                                 {item.status}

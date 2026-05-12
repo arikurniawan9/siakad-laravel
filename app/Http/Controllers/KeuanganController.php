@@ -616,6 +616,21 @@ class KeuanganController extends Controller
             'failed' => Transaksi::query()->whereIn('status', ['failed', 'expired', 'cancelled'])->count(),
             'nominal_success' => (float) Transaksi::query()->where('status', 'success')->sum('gross_amount'),
             'reconciliation_pending' => FinanceReconciliation::query()->where('status', 'pending')->count(),
+            'reconciliation_pending_over_24h' => FinanceReconciliation::query()
+                ->where('status', 'pending')
+                ->where('created_at', '<', now()->subDay())
+                ->count(),
+            'reconciliation_oldest_pending_hours' => (int) floor(
+                max(
+                    0,
+                    now()->diffInSeconds(
+                        FinanceReconciliation::query()
+                            ->where('status', 'pending')
+                            ->oldest('created_at')
+                            ->value('created_at') ?? now()
+                    ) / 3600
+                )
+            ),
         ];
 
         return Inertia::render('Modules/Keuangan/Transaksi', [

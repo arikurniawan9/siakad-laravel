@@ -415,118 +415,10 @@ class SettingsController extends Controller
             'resolution_notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        if ($item->status !== 'pending') {
+        $notes = filled($data['resolution_notes'] ?? null) ? trim((string) $data['resolution_notes']) : null;
+        if (! $this->resolveReconciliationItem($item, $notes, $request->user()?->id)) {
             return back()->with('error', 'Item rekonsiliasi sudah diproses.');
         }
-
-        DB::transaction(function () use ($request, $item, $data) {
-            $notes = filled($data['resolution_notes'] ?? null) ? trim((string) $data['resolution_notes']) : null;
-
-            if ($item->tagihan) {
-                $tagihan = $item->tagihan()->lockForUpdate()->first();
-                if ($tagihan) {
-                    $alreadyRecorded = DB::table('pembayarans')
-                        ->whereNull('deleted_at')
-                        ->where('tagihan_id', $tagihan->id)
-                        ->where('provider', $item->provider)
-                        ->where('reference', $item->order_id)
-                        ->exists();
-
-                    if (! $alreadyRecorded) {
-                        $items = $tagihan->items()
-                            ->orderBy('sort_order')
-                            ->orderBy('id')
-                            ->get(['id', 'total', 'kode', 'nama', 'nominal', 'potongan', 'denda', 'sort_order']);
-
-                        if ($items->isEmpty()) {
-                            $items = collect([
-                                TagihanItem::query()->create([
-                                    'tagihan_id' => $tagihan->id,
-                                    'jenis_tagihan_id' => null,
-                                    'kode' => substr((string) ($tagihan->jenis ?? 'ITEM'), 0, 30),
-                                    'nama' => substr((string) ($tagihan->jenis ?? 'Item'), 0, 120),
-                                    'nominal' => (float) $tagihan->nominal,
-                                    'potongan' => (float) $tagihan->potongan,
-                                    'denda' => (float) $tagihan->denda,
-                                    'total' => (float) $tagihan->total,
-                                    'keterangan' => null,
-                                    'sort_order' => 0,
-                                ]),
-                            ]);
-                        }
-
-                        $amount = (float) $item->amount;
-
-                        $pembayaran = Pembayaran::query()->create([
-                            'tagihan_id' => $tagihan->id,
-                            'mahasiswa_id' => filled($tagihan->mahasiswa_id) ? (int) $tagihan->mahasiswa_id : null,
-                            'jenis_pembayaran_id' => null,
-                            'provider' => (string) $item->provider,
-                            'reference' => (string) $item->order_id,
-                            'amount' => $amount,
-                            'paid_at' => now(),
-                            'notes' => $notes,
-                            'created_by_user_id' => $request->user()?->id,
-                        ]);
-
-                        $paidPerItem = DB::table('pembayaran_allocations')
-                            ->join('pembayarans', 'pembayarans.id', '=', 'pembayaran_allocations.pembayaran_id')
-                            ->whereNull('pembayarans.deleted_at')
-                            ->whereIn('pembayaran_allocations.tagihan_item_id', $items->pluck('id')->all())
-                            ->groupBy('pembayaran_allocations.tagihan_item_id')
-                            ->selectRaw('pembayaran_allocations.tagihan_item_id as tagihan_item_id, SUM(pembayaran_allocations.amount) as total_paid')
-                            ->pluck('total_paid', 'tagihan_item_id')
-                            ->map(fn ($v) => (float) $v);
-
-                        $remaining = $amount;
-                        foreach ($items as $it) {
-                            if ($remaining <= 0) {
-                                break;
-                            }
-
-                            $itemPaid = (float) ($paidPerItem[$it->id] ?? 0);
-                            $itemRemaining = max((float) $it->total - $itemPaid, 0);
-                            if ($itemRemaining <= 0) {
-                                continue;
-                            }
-
-                            $take = min($remaining, $itemRemaining);
-                            if ($take <= 0) {
-                                continue;
-                            }
-
-                            PembayaranAllocation::query()->create([
-                                'pembayaran_id' => $pembayaran->id,
-                                'tagihan_item_id' => $it->id,
-                                'amount' => $take,
-                            ]);
-
-                            $remaining -= $take;
-                        }
-
-                        if (round($remaining, 2) > 0) {
-                            $firstItem = $items->first();
-                            PembayaranAllocation::query()->create([
-                                'pembayaran_id' => $pembayaran->id,
-                                'tagihan_item_id' => $firstItem->id,
-                                'amount' => $remaining,
-                            ]);
-                        }
-
-                        $tagihan->refreshStatusFromPayments();
-                    } else {
-                        $tagihan->refreshStatusFromPayments();
-                    }
-                }
-            }
-
-            $item->update([
-                'status' => 'resolved',
-                'resolution_notes' => $notes,
-                'resolved_at' => now(),
-                'resolved_by_user_id' => $request->user()?->id,
-            ]);
-        });
 
         Audit::log(
             source: 'finance',
@@ -546,12 +438,10 @@ class SettingsController extends Controller
             'resolution_notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $item->update([
-            'status' => 'ignored',
-            'resolution_notes' => filled($data['resolution_notes'] ?? null) ? trim((string) $data['resolution_notes']) : null,
-            'resolved_at' => now(),
-            'resolved_by_user_id' => $request->user()?->id,
-        ]);
+        $notes = filled($data['resolution_notes'] ?? null) ? trim((string) $data['resolution_notes']) : null;
+        if (! $this->ignoreReconciliationItem($item, $notes, $request->user()?->id)) {
+            return back()->with('error', 'Item rekonsiliasi sudah diproses.');
+        }
 
         Audit::log(
             source: 'finance',
@@ -563,6 +453,52 @@ class SettingsController extends Controller
         );
 
         return back()->with('success', 'Item rekonsiliasi ditandai ignored.');
+    }
+
+    public function bulkFinanceReconciliation(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'action' => ['required', 'string', Rule::in(['resolve', 'ignore'])],
+            'item_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'item_ids.*' => ['integer', 'exists:finance_reconciliations,id'],
+            'resolution_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $action = (string) $data['action'];
+        $notes = filled($data['resolution_notes'] ?? null) ? trim((string) $data['resolution_notes']) : null;
+        $userId = $request->user()?->id;
+
+        $items = FinanceReconciliation::query()
+            ->whereIn('id', $data['item_ids'])
+            ->get();
+
+        $processed = 0;
+        foreach ($items as $item) {
+            $ok = $action === 'resolve'
+                ? $this->resolveReconciliationItem($item, $notes, $userId)
+                : $this->ignoreReconciliationItem($item, $notes, $userId);
+
+            if (! $ok) {
+                continue;
+            }
+
+            $processed++;
+
+            Audit::log(
+                source: 'finance',
+                action: $action === 'resolve' ? 'reconciliation.resolve' : 'reconciliation.ignore',
+                entityType: 'finance_reconciliation',
+                entityId: (int) $item->id,
+                message: $action === 'resolve' ? 'Rekonsiliasi diselesaikan (bulk)' : 'Rekonsiliasi diabaikan (bulk)',
+                meta: ['order_id' => $item->order_id],
+            );
+        }
+
+        if ($processed === 0) {
+            return back()->with('error', 'Tidak ada item pending yang bisa diproses.');
+        }
+
+        return back()->with('success', "Bulk {$action} berhasil untuk {$processed} item.");
     }
 
     public function backupDatabase(Request $request): RedirectResponse
@@ -876,5 +812,137 @@ class SettingsController extends Controller
             'manual' => true,
             default => false,
         };
+    }
+
+    private function resolveReconciliationItem(FinanceReconciliation $item, ?string $notes, ?int $userId): bool
+    {
+        if ($item->status !== 'pending') {
+            return false;
+        }
+
+        DB::transaction(function () use ($item, $notes, $userId) {
+            if ($item->tagihan) {
+                $tagihan = $item->tagihan()->lockForUpdate()->first();
+                if ($tagihan) {
+                    $alreadyRecorded = DB::table('pembayarans')
+                        ->whereNull('deleted_at')
+                        ->where('tagihan_id', $tagihan->id)
+                        ->where('provider', $item->provider)
+                        ->where('reference', $item->order_id)
+                        ->exists();
+
+                    if (! $alreadyRecorded) {
+                        $items = $tagihan->items()
+                            ->orderBy('sort_order')
+                            ->orderBy('id')
+                            ->get(['id', 'total', 'kode', 'nama', 'nominal', 'potongan', 'denda', 'sort_order']);
+
+                        if ($items->isEmpty()) {
+                            $items = collect([
+                                TagihanItem::query()->create([
+                                    'tagihan_id' => $tagihan->id,
+                                    'jenis_tagihan_id' => null,
+                                    'kode' => substr((string) ($tagihan->jenis ?? 'ITEM'), 0, 30),
+                                    'nama' => substr((string) ($tagihan->jenis ?? 'Item'), 0, 120),
+                                    'nominal' => (float) $tagihan->nominal,
+                                    'potongan' => (float) $tagihan->potongan,
+                                    'denda' => (float) $tagihan->denda,
+                                    'total' => (float) $tagihan->total,
+                                    'keterangan' => null,
+                                    'sort_order' => 0,
+                                ]),
+                            ]);
+                        }
+
+                        $amount = (float) $item->amount;
+
+                        $pembayaran = Pembayaran::query()->create([
+                            'tagihan_id' => $tagihan->id,
+                            'mahasiswa_id' => filled($tagihan->mahasiswa_id) ? (int) $tagihan->mahasiswa_id : null,
+                            'jenis_pembayaran_id' => null,
+                            'provider' => (string) $item->provider,
+                            'reference' => (string) $item->order_id,
+                            'amount' => $amount,
+                            'paid_at' => now(),
+                            'notes' => $notes,
+                            'created_by_user_id' => $userId,
+                        ]);
+
+                        $paidPerItem = DB::table('pembayaran_allocations')
+                            ->join('pembayarans', 'pembayarans.id', '=', 'pembayaran_allocations.pembayaran_id')
+                            ->whereNull('pembayarans.deleted_at')
+                            ->whereIn('pembayaran_allocations.tagihan_item_id', $items->pluck('id')->all())
+                            ->groupBy('pembayaran_allocations.tagihan_item_id')
+                            ->selectRaw('pembayaran_allocations.tagihan_item_id as tagihan_item_id, SUM(pembayaran_allocations.amount) as total_paid')
+                            ->pluck('total_paid', 'tagihan_item_id')
+                            ->map(fn ($v) => (float) $v);
+
+                        $remaining = $amount;
+                        foreach ($items as $it) {
+                            if ($remaining <= 0) {
+                                break;
+                            }
+
+                            $itemPaid = (float) ($paidPerItem[$it->id] ?? 0);
+                            $itemRemaining = max((float) $it->total - $itemPaid, 0);
+                            if ($itemRemaining <= 0) {
+                                continue;
+                            }
+
+                            $take = min($remaining, $itemRemaining);
+                            if ($take <= 0) {
+                                continue;
+                            }
+
+                            PembayaranAllocation::query()->create([
+                                'pembayaran_id' => $pembayaran->id,
+                                'tagihan_item_id' => $it->id,
+                                'amount' => $take,
+                            ]);
+
+                            $remaining -= $take;
+                        }
+
+                        if (round($remaining, 2) > 0) {
+                            $firstItem = $items->first();
+                            PembayaranAllocation::query()->create([
+                                'pembayaran_id' => $pembayaran->id,
+                                'tagihan_item_id' => $firstItem->id,
+                                'amount' => $remaining,
+                            ]);
+                        }
+
+                        $tagihan->refreshStatusFromPayments();
+                    } else {
+                        $tagihan->refreshStatusFromPayments();
+                    }
+                }
+            }
+
+            $item->update([
+                'status' => 'resolved',
+                'resolution_notes' => $notes,
+                'resolved_at' => now(),
+                'resolved_by_user_id' => $userId,
+            ]);
+        });
+
+        return true;
+    }
+
+    private function ignoreReconciliationItem(FinanceReconciliation $item, ?string $notes, ?int $userId): bool
+    {
+        if ($item->status !== 'pending') {
+            return false;
+        }
+
+        $item->update([
+            'status' => 'ignored',
+            'resolution_notes' => $notes,
+            'resolved_at' => now(),
+            'resolved_by_user_id' => $userId,
+        ]);
+
+        return true;
     }
 }

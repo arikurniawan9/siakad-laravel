@@ -340,6 +340,11 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                             <p className="font-semibold uppercase tracking-[0.16em] text-slate-500">Perlu Review</p>
                             <p className="mt-1 text-sm font-bold text-rose-700">{callbackHealth}</p>
                         </div>
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                            <p className="font-semibold uppercase tracking-[0.16em] text-slate-500">SLA &gt; 24 Jam</p>
+                            <p className="mt-1 text-sm font-bold text-fuchsia-700">{stats?.reconciliation_pending_over_24h ?? 0}</p>
+                            <p className="mt-1 text-[11px] text-slate-500">Oldest pending: {stats?.reconciliation_oldest_pending_hours ?? 0} jam</p>
+                        </div>
                     </div>
                 </section>
 
