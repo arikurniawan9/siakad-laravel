@@ -1,10 +1,10 @@
-﻿import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ModuleHero from '@/Components/ModuleHero';
 import Modal from '@/Components/Modal';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const badge = {
     verified: 'bg-emerald-100 text-emerald-700',
@@ -118,6 +118,8 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
     const [verificationStatus, setVerificationStatus] = useState(verificationFilters?.status || 'all');
     const [verificationPaymentStatus, setVerificationPaymentStatus] = useState(verificationFilters?.payment_status || 'all');
     const [verificationPerPage, setVerificationPerPage] = useState(String(verificationFilters?.per_page || 10));
+    const [formStep, setFormStep] = useState(1);
+    const [stepError, setStepError] = useState('');
     const form = useForm({
         prodi_id: '',
         gelombang: 'Gelombang 1',
@@ -132,11 +134,55 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
 
     const submit = (e) => {
         e.preventDefault();
+        if (!isStepValid(3)) {
+            setStepError('Lengkapi dokumen wajib sebelum mengirim pendaftaran.');
+            return;
+        }
         form.post(route('pmb.store'), {
             forceFormData: true,
             preserveScroll: true,
-            onSuccess: () => form.reset('prodi_id', 'gelombang', 'phone', 'asal_sekolah', 'dokumen_ktp', 'dokumen_ijazah', 'dokumen_foto'),
+            onSuccess: () => {
+                form.reset('prodi_id', 'gelombang', 'phone', 'asal_sekolah', 'dokumen_ktp', 'dokumen_ijazah', 'dokumen_foto');
+                setFormStep(1);
+                setStepError('');
+            },
         });
+    };
+
+    const requiredByStep = useMemo(() => ({
+        1: ['gelombang', 'prodi_id'],
+        2: ['nama_lengkap', 'email', 'phone', 'asal_sekolah'],
+        3: ['dokumen_ktp', 'dokumen_ijazah', 'dokumen_foto'],
+    }), []);
+
+    const isFieldFilled = (field) => {
+        const value = form.data[field];
+        if (field.startsWith('dokumen_')) {
+            return Boolean(value);
+        }
+        return String(value || '').trim() !== '';
+    };
+
+    const isStepValid = (step) => {
+        const fields = requiredByStep[step] || [];
+        return fields.every((field) => isFieldFilled(field));
+    };
+
+    const completedSteps = [1, 2, 3].filter((step) => isStepValid(step)).length;
+    const progressPercent = Math.round((completedSteps / 3) * 100);
+
+    const goNextStep = () => {
+        if (!isStepValid(formStep)) {
+            setStepError(`Lengkapi data wajib pada Tahap ${formStep} sebelum lanjut.`);
+            return;
+        }
+        setStepError('');
+        setFormStep((prev) => Math.min(3, prev + 1));
+    };
+
+    const goPrevStep = () => {
+        setStepError('');
+        setFormStep((prev) => Math.max(1, prev - 1));
     };
 
     const stats = [
@@ -226,7 +272,7 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
     };
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900 sm:text-2xl">PMB - Admission Center</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="PMB" />
 
             {toast?.message && (
@@ -270,54 +316,112 @@ export default function Page({ auth, prodis = [], riwayat = [], summary = null, 
                         </Link>
                     </div>
 
-                    <div className="mt-4 grid gap-4 md:grid-cols-2">
-                        <div>
-                            <label className="label">Gelombang</label>
-                            <input className="field" value={form.data.gelombang} onChange={(e) => form.setData('gelombang', e.target.value)} placeholder="Gelombang 1" />
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Progress Form PMB</p>
+                            <p className="text-xs font-bold text-slate-700">{progressPercent}% selesai</p>
                         </div>
-                        <div>
-                            <label className="label">Program Studi</label>
-                            <select className="field" value={form.data.prodi_id} onChange={(e) => form.setData('prodi_id', e.target.value)}>
-                                <option value="">Pilih Prodi</option>
-                                {prodis.map((p) => <option key={p.id} value={p.id}>{p.nama} ({p.jenjang})</option>)}
-                            </select>
+                        <div className="mt-2 h-2 w-full rounded-full bg-slate-200">
+                            <div className="h-2 rounded-full bg-sky-600 transition-all" style={{ width: `${progressPercent}%` }} />
                         </div>
-                        <div>
-                            <label className="label">Nama Lengkap</label>
-                            <input className="field" value={form.data.nama_lengkap} onChange={(e) => form.setData('nama_lengkap', e.target.value)} autoComplete="name" placeholder="Nama sesuai identitas" />
-                        </div>
-                        <div>
-                            <label className="label">Email</label>
-                            <input type="email" className="field" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} autoComplete="email" placeholder="nama@email.com" />
-                        </div>
-                        <div>
-                            <label className="label">No. HP</label>
-                            <input type="tel" className="field" value={form.data.phone} onChange={(e) => form.setData('phone', e.target.value)} autoComplete="tel" placeholder="08xxxxxxxxxx" />
-                        </div>
-                        <div>
-                            <label className="label">Asal Sekolah</label>
-                            <input className="field" value={form.data.asal_sekolah} onChange={(e) => form.setData('asal_sekolah', e.target.value)} placeholder="SMA/SMK/MA ..." />
-                        </div>
-                        <div>
-                            <label className="label">Dokumen KTP</label>
-                            <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_ktp', e.target.files?.[0] || null)} />
-                            <p className="mt-1 text-[11px] text-slate-500">Format disarankan: PDF / JPG / PNG.</p>
-                        </div>
-                        <div>
-                            <label className="label">Dokumen Ijazah</label>
-                            <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_ijazah', e.target.files?.[0] || null)} />
-                            <p className="mt-1 text-[11px] text-slate-500">Format disarankan: PDF / JPG / PNG.</p>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="label">Pas Foto</label>
-                            <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_foto', e.target.files?.[0] || null)} />
-                            <p className="mt-1 text-[11px] text-slate-500">Gunakan foto formal dengan latar yang jelas.</p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                            {[
+                                { step: 1, title: 'Tahap 1', subtitle: 'Gelombang & Prodi' },
+                                { step: 2, title: 'Tahap 2', subtitle: 'Identitas Pendaftar' },
+                                { step: 3, title: 'Tahap 3', subtitle: 'Upload Dokumen' },
+                            ].map((item) => (
+                                <button
+                                    key={item.step}
+                                    type="button"
+                                    onClick={() => setFormStep(item.step)}
+                                    className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
+                                        formStep === item.step
+                                            ? 'border-sky-300 bg-sky-50 text-sky-700'
+                                            : isStepValid(item.step)
+                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                : 'border-slate-200 bg-white text-slate-600'
+                                    }`}
+                                >
+                                    <p className="font-bold">{item.title}</p>
+                                    <p className="mt-0.5">{item.subtitle}</p>
+                                </button>
+                            ))}
                         </div>
                     </div>
 
-                    <button type="submit" className="btn-primary mt-5 w-full md:w-auto" disabled={form.processing}>
-                        {form.processing ? 'Menyimpan...' : 'Simpan Pendaftaran'}
-                    </button>
+                    {formStep === 1 && (
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="label">Gelombang</label>
+                                <input className="field" value={form.data.gelombang} onChange={(e) => form.setData('gelombang', e.target.value)} placeholder="Gelombang 1" />
+                            </div>
+                            <div>
+                                <label className="label">Program Studi</label>
+                                <select className="field" value={form.data.prodi_id} onChange={(e) => form.setData('prodi_id', e.target.value)}>
+                                    <option value="">Pilih Prodi</option>
+                                    {prodis.map((p) => <option key={p.id} value={p.id}>{p.nama} ({p.jenjang})</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    {formStep === 2 && (
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="label">Nama Lengkap</label>
+                                <input className="field" value={form.data.nama_lengkap} onChange={(e) => form.setData('nama_lengkap', e.target.value)} autoComplete="name" placeholder="Nama sesuai identitas" />
+                            </div>
+                            <div>
+                                <label className="label">Email</label>
+                                <input type="email" className="field" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} autoComplete="email" placeholder="nama@email.com" />
+                            </div>
+                            <div>
+                                <label className="label">No. HP</label>
+                                <input type="tel" className="field" value={form.data.phone} onChange={(e) => form.setData('phone', e.target.value)} autoComplete="tel" placeholder="08xxxxxxxxxx" />
+                            </div>
+                            <div>
+                                <label className="label">Asal Sekolah</label>
+                                <input className="field" value={form.data.asal_sekolah} onChange={(e) => form.setData('asal_sekolah', e.target.value)} placeholder="SMA/SMK/MA ..." />
+                            </div>
+                        </div>
+                    )}
+
+                    {formStep === 3 && (
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="label">Dokumen KTP</label>
+                                <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_ktp', e.target.files?.[0] || null)} />
+                                <p className="mt-1 text-[11px] text-slate-500">Format disarankan: PDF / JPG / PNG.</p>
+                            </div>
+                            <div>
+                                <label className="label">Dokumen Ijazah</label>
+                                <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_ijazah', e.target.files?.[0] || null)} />
+                                <p className="mt-1 text-[11px] text-slate-500">Format disarankan: PDF / JPG / PNG.</p>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="label">Pas Foto</label>
+                                <input type="file" className="field file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-slate-700" onChange={(e) => form.setData('dokumen_foto', e.target.files?.[0] || null)} />
+                                <p className="mt-1 text-[11px] text-slate-500">Gunakan foto formal dengan latar yang jelas.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {stepError && <p className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{stepError}</p>}
+
+                    <div className="mt-5 flex flex-wrap gap-2">
+                        <button type="button" className="btn-outline" onClick={goPrevStep} disabled={formStep === 1}>
+                            Kembali
+                        </button>
+                        {formStep < 3 ? (
+                            <button type="button" className="btn-primary" onClick={goNextStep}>
+                                Lanjut
+                            </button>
+                        ) : (
+                            <button type="submit" className="btn-primary" disabled={form.processing}>
+                                {form.processing ? 'Menyimpan...' : 'Simpan Pendaftaran'}
+                            </button>
+                        )}
+                    </div>
                 </form>
 
                 <div className="panel p-5 xl:col-span-2">
