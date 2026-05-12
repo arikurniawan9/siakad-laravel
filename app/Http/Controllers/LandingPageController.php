@@ -153,9 +153,9 @@ class LandingPageController extends Controller
             'phone' => '(021) 1234 5678',
             'whatsapp' => '6281234567890',
             'cta_primary_label' => 'Daftar PMB Sekarang',
-            'cta_primary_url' => url('/pmb'),
+            'cta_primary_url' => url('/daftar-pmb'),
             'cta_secondary_label' => 'Masuk Sistem Akademik',
-            'cta_secondary_url' => url('/login'),
+            'cta_secondary_url' => url('/login-mahasiswa'),
             'stats' => [
                 ['label' => 'Mahasiswa Aktif', 'value' => '2.500+'],
                 ['label' => 'Program Studi', 'value' => '12'],

@@ -45,9 +45,9 @@ const quickTemplates = {
         phone: '(0263) 000000',
         whatsapp: '6281234567890',
         cta_primary_label: 'Daftar PMB Sekarang',
-        cta_primary_url: '/pmb',
+        cta_primary_url: '/daftar-pmb',
         cta_secondary_label: 'Masuk Sistem Akademik',
-        cta_secondary_url: '/login',
+        cta_secondary_url: '/login-mahasiswa',
         colors: { primary: '#0f766e', accent: '#f59e0b' },
         stats: [
             { label: 'Mahasiswa Aktif', value: '250+' },
@@ -74,10 +74,10 @@ const quickTemplates = {
         ],
         slider_items: [
             { title: 'Selamat Datang di STAI Al-Ittihad', subtitle: 'Kampus Islam modern yang membina akhlak, ilmu, dan kepemimpinan mahasiswa.', image_url: '/halaman utama.png', cta_label: 'Pelajari Kampus', cta_url: '/#profil' },
-            { title: 'Penerimaan Mahasiswa Baru Dibuka', subtitle: 'Daftarkan diri Anda sekarang dan raih peluang beasiswa pendidikan.', image_url: '/logostai.png', cta_label: 'Daftar PMB', cta_url: '/pmb' },
+            { title: 'Penerimaan Mahasiswa Baru Dibuka', subtitle: 'Daftarkan diri Anda sekarang dan raih peluang beasiswa pendidikan.', image_url: '/logostai.png', cta_label: 'Daftar PMB', cta_url: '/daftar-pmb' },
         ],
         news_items: [
-            { title: 'Pembukaan PMB Gelombang Baru', date: '12 Mei 2026', excerpt: 'Pendaftaran mahasiswa baru resmi dibuka dengan kuota terbatas.', url: '/pmb' },
+            { title: 'Pembukaan PMB Gelombang Baru', date: '12 Mei 2026', excerpt: 'Pendaftaran mahasiswa baru resmi dibuka dengan kuota terbatas.', url: '/daftar-pmb' },
             { title: 'Seminar Nasional Pendidikan Islam', date: '05 Mei 2026', excerpt: 'Diskusi strategis pengembangan pendidikan Islam berbasis teknologi.', url: '/#' },
             { title: 'Program Penguatan Karier Mahasiswa', date: '29 April 2026', excerpt: 'Kampus membuka pendampingan karier dan kewirausahaan bagi mahasiswa aktif.', url: '/#' },
         ],
@@ -96,7 +96,7 @@ const quickTemplates = {
         phone: '(021) 1234 5678',
         whatsapp: '6289876543210',
         cta_primary_label: 'Gabung Sekarang',
-        cta_primary_url: '/pmb',
+        cta_primary_url: '/daftar-pmb',
         cta_secondary_label: 'Lihat Program',
         cta_secondary_url: '/#program',
         colors: { primary: '#0b5cab', accent: '#f97316' },
@@ -126,7 +126,7 @@ const quickTemplates = {
         ],
         slider_items: [
             { title: 'Future-Ready Campus', subtitle: 'Kurikulum modern untuk mempersiapkan lulusan menghadapi transformasi digital.', image_url: '/halaman utama.png', cta_label: 'Lihat Program', cta_url: '/#program' },
-            { title: 'Join Our Innovation Ecosystem', subtitle: 'Bangun portofolio, jejaring, dan peluang karier sejak dini bersama kampus kami.', image_url: '/logostai.png', cta_label: 'Daftar Sekarang', cta_url: '/pmb' },
+            { title: 'Join Our Innovation Ecosystem', subtitle: 'Bangun portofolio, jejaring, dan peluang karier sejak dini bersama kampus kami.', image_url: '/logostai.png', cta_label: 'Daftar Sekarang', cta_url: '/daftar-pmb' },
         ],
         news_items: [
             { title: 'Kuliah Umum AI for Education', date: '10 Mei 2026', excerpt: 'Pembahasan implementasi AI dalam pembelajaran dan manajemen kampus.', url: '/#' },

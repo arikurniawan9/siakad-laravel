@@ -15,6 +15,7 @@ use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\MahasiswaController;
 use App\Http\Controllers\MahasiswaImportController;
 use App\Http\Controllers\PembayaranController;
+use App\Http\Controllers\PublicGatewayController;
 use App\Http\Controllers\MidtransCallbackController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PmbController;
@@ -25,6 +26,8 @@ use App\Http\Controllers\XenditCallbackController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [LandingPageController::class, 'show'])->name('landing.index');
+Route::get('/daftar-pmb', [PublicGatewayController::class, 'daftarPmb'])->name('public.daftar-pmb');
+Route::get('/login-mahasiswa', [PublicGatewayController::class, 'loginMahasiswa'])->name('public.login-mahasiswa');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
