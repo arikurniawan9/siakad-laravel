@@ -26,9 +26,13 @@ $perkuliahan = [
 ];
 
 $pmb = [
-    ['label' => 'PMB Pendaftaran', 'route' => 'pmb.index'],
-    ['label' => 'PMB Pembayaran', 'route' => 'pmb.payment'],
+    ['label' => 'Form Pendaftaran PMB', 'route' => 'pmb.index'],
+    ['label' => 'Pembayaran PMB', 'route' => 'pmb.payment'],
 ];
+
+$pmbManage = array_merge($pmb, [
+    ['label' => 'Verifikasi PMB', 'route' => 'pmb.verification.index'],
+]);
 
 $keuangan = [
     ['label' => 'Dashboard Keuangan', 'route' => 'keuangan.index'],
@@ -52,10 +56,13 @@ $sistem = [
     ['label' => 'Notifikasi', 'route' => 'notifications.index'],
 ];
 
+$website = [
+    ['label' => 'Preview Website', 'route' => 'landing.index'],
+    ['label' => 'Landing Page Builder', 'route' => 'settings.landing-page.index'],
+];
+
 $superAdminExtras = [
     ['label' => 'Manajemen User & Akses', 'route' => 'settings.user-access.index'],
-    ['label' => 'Landing Page Kampus', 'route' => 'settings.landing-page.index'],
-    ['label' => 'Payment Gateway', 'route' => 'settings.payment-gateway.index'],
     ['label' => 'Maintenance Database', 'route' => 'settings.database.index'],
     ['label' => 'Pengaturan', 'route' => 'settings.index'],
 ];
@@ -64,10 +71,11 @@ return [
     'super-admin' => array_merge($dashboard, [
         ['group' => 'Master Akademik', 'items' => $masterAkademik],
         ['group' => 'Perkuliahan', 'items' => $perkuliahan],
+        ['group' => 'Website Kampus', 'items' => $website],
+        ['group' => 'PMB', 'items' => $pmbManage],
         ['group' => 'Keuangan', 'items' => $keuanganSuperadmin],
-        ['group' => 'PMB', 'items' => $pmb],
         ['group' => 'Laporan', 'items' => $laporan],
-        ['group' => 'Sistem', 'items' => array_merge($sistem, $superAdminExtras)],
+        ['group' => 'Sistem & Akses', 'items' => array_merge($sistem, $superAdminExtras)],
     ]),
     'baak' => array_merge($dashboard, [
         ['group' => 'Master Akademik', 'items' => $masterAkademik],
@@ -77,9 +85,8 @@ return [
             ['label' => 'Data Dosen', 'route' => 'dosen.index'],
             ['label' => 'Relasi Dosen', 'route' => 'dosen.relasi.index'],
         ]],
-        ['group' => 'Sistem', 'items' => array_merge($sistem, [
-            ['label' => 'Landing Page Kampus', 'route' => 'settings.landing-page.index'],
-        ])],
+        ['group' => 'PMB', 'items' => $pmbManage],
+        ['group' => 'Sistem', 'items' => $sistem],
     ]),
     'admin' => array_merge($dashboard, [
         ['group' => 'Master Akademik', 'items' => $masterAkademik],
@@ -89,8 +96,9 @@ return [
             ['label' => 'Data Dosen', 'route' => 'dosen.index'],
             ['label' => 'Relasi Dosen', 'route' => 'dosen.relasi.index'],
         ]],
+        ['group' => 'Website Kampus', 'items' => $website],
+        ['group' => 'PMB', 'items' => $pmbManage],
         ['group' => 'Keuangan', 'items' => $keuangan],
-        ['group' => 'PMB', 'items' => $pmb],
         ['group' => 'Laporan', 'items' => $laporan],
         ['group' => 'Sistem', 'items' => $sistem],
     ]),
@@ -100,6 +108,10 @@ return [
             ['label' => 'KRS Umum', 'route' => 'krs.index'],
             ['label' => 'Data Mahasiswa', 'route' => 'mahasiswa.index'],
             ['label' => 'Data Dosen', 'route' => 'dosen.index'],
+        ]],
+        ['group' => 'PMB', 'items' => [
+            ['label' => 'Form Pendaftaran PMB', 'route' => 'pmb.index'],
+            ['label' => 'Verifikasi PMB', 'route' => 'pmb.verification.index'],
         ]],
         ['group' => 'Sistem', 'items' => $sistem],
     ]),
@@ -119,6 +131,7 @@ return [
         ['group' => 'Sistem', 'items' => $sistem],
     ]),
     'mahasiswa' => array_merge($dashboard, [
+        ['group' => 'PMB Saya', 'items' => $pmb],
         ['group' => 'Akademik Saya', 'items' => [
             ['label' => 'KRS', 'route' => 'mahasiswa.krs'],
             ['label' => 'KHS', 'route' => 'mahasiswa.khs'],
@@ -136,7 +149,7 @@ return [
         ['group' => 'Sistem', 'items' => $sistem],
     ]),
     'calon-mahasiswa' => array_merge($dashboard, [
-        ['group' => 'PMB', 'items' => $pmb],
+        ['group' => 'PMB Saya', 'items' => $pmb],
         ['group' => 'Sistem', 'items' => $sistem],
     ]),
 ];

@@ -35,6 +35,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/pmb', [PmbController::class, 'index'])->name('pmb.index');
     Route::post('/pmb', [PmbController::class, 'store'])->name('pmb.store');
     Route::get('/pmb/payment', [PmbController::class, 'payment'])->name('pmb.payment');
+    Route::get('/pmb/verifikasi', [PmbController::class, 'index'])->middleware('role:super-admin,admin,operator,baak')->name('pmb.verification.index');
     Route::get('/pmb/{pmb}/documents/{field}', [PmbController::class, 'downloadDocument'])->name('pmb.documents.download');
     Route::get('/pmb/export/csv', [PmbController::class, 'exportVerificationCsv'])->middleware('role:super-admin,admin,operator,baak')->name('pmb.verification.export.csv');
     Route::get('/pmb/export/pdf', [PmbController::class, 'exportVerificationPdf'])->middleware('role:super-admin,admin,operator,baak')->name('pmb.verification.export.pdf');
