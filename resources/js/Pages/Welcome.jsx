@@ -15,6 +15,8 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
     const highlights = Array.isArray(content?.highlights) ? content.highlights : [];
     const navMenus = Array.isArray(content?.nav_menus) ? content.nav_menus : [];
     const sliderItems = Array.isArray(content?.slider_items) ? content.slider_items : [];
+    const newsItems = Array.isArray(content?.news_items) ? content.news_items : [];
+    const heroLayout = content?.hero_layout || 'two-column';
     const safeSliderItems = useMemo(() => (sliderItems.length ? sliderItems : [{
         title: 'Informasi Kampus',
         subtitle: 'Slider informasi kampus dapat diatur dari panel admin.',
@@ -23,11 +25,28 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
         cta_url: '',
     }]), [sliderItems]);
     const [activeSlide, setActiveSlide] = useState(0);
+    const [activeSection, setActiveSection] = useState('');
 
     useEffect(() => {
         const timer = setInterval(() => setActiveSlide((prev) => (prev + 1) % safeSliderItems.length), 5000);
         return () => clearInterval(timer);
     }, [safeSliderItems.length]);
+
+    useEffect(() => {
+        const ids = ['profil', 'program', 'informasi', 'kontak', 'berita'];
+        const onScroll = () => {
+            const fromTop = window.scrollY + 120;
+            let current = '';
+            ids.forEach((id) => {
+                const el = document.getElementById(id);
+                if (el && el.offsetTop <= fromTop) current = id;
+            });
+            setActiveSection(current);
+        };
+        onScroll();
+        window.addEventListener('scroll', onScroll);
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     return (
         <>
@@ -41,7 +60,7 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                     </div>
                 </div>
 
-                <header className="border-b border-slate-200 bg-white">
+                <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
                     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                         <div className="flex flex-wrap items-center justify-between gap-4 py-4">
                             <div className="flex items-center gap-3">
@@ -60,7 +79,10 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                         <nav className="flex flex-wrap items-center gap-1 border-t border-slate-200 py-2">
                             {navMenus.map((menu, index) => (
                                 <div key={`nav-${index}`} className="group relative">
-                                    <a href={menu?.url || '#'} className="block rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                                    <a
+                                        href={menu?.url || '#'}
+                                        className={`block rounded-lg px-3 py-2 text-sm font-semibold hover:bg-slate-100 ${String(menu?.url || '').includes(`#${activeSection}`) ? 'text-emerald-700' : 'text-slate-700'}`}
+                                    >
                                         {safe(menu?.label)}
                                     </a>
                                     {Array.isArray(menu?.children) && menu.children.length > 0 ? (
@@ -79,7 +101,7 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                 </header>
 
                 <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                    <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+                    <section className={`grid gap-5 ${heroLayout === 'one-column' ? 'lg:grid-cols-1' : 'lg:grid-cols-[1.2fr_0.8fr]'}`}>
                         <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                             <img src={safeSliderItems[activeSlide]?.image_url || '/halaman utama.png'} alt={safeSliderItems[activeSlide]?.title} className="h-[340px] w-full object-cover" />
                             <div className="p-5">
@@ -103,7 +125,7 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                                 </div>
                             </div>
                         </article>
-                        <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <article className={`rounded-3xl border border-slate-200 bg-white p-6 shadow-sm ${heroLayout === 'one-column' ? 'hidden' : ''}`}>
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{safe(content?.tagline)}</p>
                             <h3 className="mt-2 text-2xl font-black text-slate-900">{safe(content?.hero_title)}</h3>
                             <p className="mt-3 text-sm leading-7 text-slate-600">{safe(content?.hero_subtitle)}</p>
@@ -151,6 +173,21 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                         </div>
                     </section>
 
+                    <section id="berita" className="mt-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h3 className="text-xl font-black text-slate-900">Blog & Berita Kampus</h3>
+                        <p className="mt-1 text-sm text-slate-500">Dapatkan update terbaru seputar kegiatan dan informasi akademik.</p>
+                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                            {newsItems.map((item, index) => (
+                                <article key={`news-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{safe(item?.date)}</p>
+                                    <h4 className="mt-2 text-base font-bold text-slate-900">{safe(item?.title)}</h4>
+                                    <p className="mt-2 text-sm leading-6 text-slate-600">{safe(item?.excerpt)}</p>
+                                    {item?.url ? <a href={item.url} className="mt-3 inline-block text-sm font-bold text-emerald-700 hover:text-emerald-800">Read More</a> : null}
+                                </article>
+                            ))}
+                        </div>
+                    </section>
+
                     <footer id="kontak" className="mt-5 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
                         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
                             <p>© {new Date().getFullYear()} {safe(content?.campus_name)}. All rights reserved.</p>
@@ -166,4 +203,3 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
         </>
     );
 }
-

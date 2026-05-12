@@ -55,6 +55,8 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
         socials: content?.socials || { instagram: '', youtube: '', facebook: '' },
         nav_menus: Array.isArray(content?.nav_menus) ? content.nav_menus.map((item) => ({ ...item, children_text: childrenToText(item?.children) })) : [],
         slider_items: Array.isArray(content?.slider_items) ? content.slider_items : [],
+        hero_layout: content?.hero_layout || 'two-column',
+        news_items: Array.isArray(content?.news_items) ? content.news_items : [],
     });
 
     const save = () => {
@@ -109,6 +111,20 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
         form.setData('slider_items', form.data.slider_items.filter((_, idx) => idx !== index));
     };
 
+    const updateNews = (index, key, value) => {
+        const next = [...form.data.news_items];
+        next[index] = { ...next[index], [key]: value };
+        form.setData('news_items', next);
+    };
+
+    const addNews = () => {
+        form.setData('news_items', [...form.data.news_items, { title: '', date: '', excerpt: '', url: '' }]);
+    };
+
+    const removeNews = (index) => {
+        form.setData('news_items', form.data.news_items.filter((_, idx) => idx !== index));
+    };
+
     const uploadSliderImage = (index, file) => {
         if (!file) return;
         const uploadForm = new FormData();
@@ -161,6 +177,10 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
                         <input className="form-input md:col-span-2" placeholder="Judul Hero" value={form.data.hero_title} onChange={(e) => form.setData('hero_title', e.target.value)} />
                         <textarea className="form-input min-h-[110px] md:col-span-2" placeholder="Deskripsi Hero" value={form.data.hero_subtitle} onChange={(e) => form.setData('hero_subtitle', e.target.value)} />
                         <input className="form-input md:col-span-2" placeholder="URL Gambar Hero / Logo" value={form.data.hero_image_url} onChange={(e) => form.setData('hero_image_url', e.target.value)} />
+                        <select className="form-input md:col-span-2" value={form.data.hero_layout} onChange={(e) => form.setData('hero_layout', e.target.value)}>
+                            <option value="two-column">Hero 2 Kolom</option>
+                            <option value="one-column">Hero 1 Kolom</option>
+                        </select>
                     </div>
                 </section>
 
@@ -230,6 +250,25 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
                         ))}
                     </div>
                     <button type="button" className="btn-outline mt-3" onClick={addSlider}>Tambah Slide</button>
+                </section>
+
+                <section className="panel p-5">
+                    <h3 className="text-sm font-bold text-slate-900">Berita Kampus</h3>
+                    <p className="mt-1 text-xs text-slate-500">Daftar berita/informasi singkat yang tampil pada landing page.</p>
+                    <div className="mt-4 space-y-3">
+                        {form.data.news_items.map((item, index) => (
+                            <div key={`news-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="grid gap-2 md:grid-cols-2">
+                                    <input className="form-input md:col-span-2" placeholder="Judul berita" value={item?.title || ''} onChange={(e) => updateNews(index, 'title', e.target.value)} />
+                                    <input className="form-input" placeholder="Tanggal (contoh: 12 Mei 2026)" value={item?.date || ''} onChange={(e) => updateNews(index, 'date', e.target.value)} />
+                                    <input className="form-input" placeholder="URL berita (opsional)" value={item?.url || ''} onChange={(e) => updateNews(index, 'url', e.target.value)} />
+                                    <textarea className="form-input min-h-[80px] md:col-span-2" placeholder="Ringkasan berita" value={item?.excerpt || ''} onChange={(e) => updateNews(index, 'excerpt', e.target.value)} />
+                                </div>
+                                <button type="button" className="btn-outline mt-2" onClick={() => removeNews(index)}>Hapus Berita</button>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" className="btn-outline mt-3" onClick={addNews}>Tambah Berita</button>
                 </section>
 
                 <section className="panel p-5">

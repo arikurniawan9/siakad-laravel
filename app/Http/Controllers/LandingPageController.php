@@ -78,6 +78,12 @@ class LandingPageController extends Controller
             'slider_items.*.image_url' => ['required', 'url', 'max:500'],
             'slider_items.*.cta_label' => ['nullable', 'string', 'max:50'],
             'slider_items.*.cta_url' => ['nullable', 'url', 'max:500'],
+            'hero_layout' => ['nullable', 'in:one-column,two-column'],
+            'news_items' => ['nullable', 'array', 'max:8'],
+            'news_items.*.title' => ['required_with:news_items', 'string', 'max:120'],
+            'news_items.*.date' => ['required_with:news_items', 'string', 'max:40'],
+            'news_items.*.excerpt' => ['required_with:news_items', 'string', 'max:220'],
+            'news_items.*.url' => ['nullable', 'url', 'max:500'],
         ]);
 
         AppSetting::query()->updateOrCreate(
@@ -201,6 +207,27 @@ class LandingPageController extends Controller
                     'image_url' => url('/logostai.png'),
                     'cta_label' => 'Lihat Profil',
                     'cta_url' => url('/#profil'),
+                ],
+            ],
+            'hero_layout' => 'two-column',
+            'news_items' => [
+                [
+                    'title' => 'Workshop Kewirausahaan Mahasiswa',
+                    'date' => '12 Mei 2026',
+                    'excerpt' => 'Penguatan kompetensi kewirausahaan dan inovasi mahasiswa berbasis nilai keislaman.',
+                    'url' => url('/#'),
+                ],
+                [
+                    'title' => 'Pembukaan PMB Gelombang Baru',
+                    'date' => '10 Mei 2026',
+                    'excerpt' => 'STAI Al-Ittihad membuka pendaftaran calon mahasiswa baru dengan skema beasiswa terbatas.',
+                    'url' => url('/pmb'),
+                ],
+                [
+                    'title' => 'Seminar Nasional Pendidikan Islam',
+                    'date' => '05 Mei 2026',
+                    'excerpt' => 'Kolaborasi dosen dan praktisi untuk membahas transformasi pendidikan Islam di era digital.',
+                    'url' => url('/#'),
                 ],
             ],
         ];
