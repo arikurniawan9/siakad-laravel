@@ -55,6 +55,20 @@ class LandingPageSettingsTest extends TestCase
             ],
             'colors' => ['primary' => '#0f766e', 'accent' => '#f59e0b'],
             'socials' => ['instagram' => '', 'youtube' => '', 'facebook' => ''],
+            'nav_menus' => [
+                ['label' => 'Beranda', 'url' => 'https://example.com/#beranda'],
+                ['label' => 'Profil', 'url' => 'https://example.com/#profil'],
+                ['label' => 'Kontak', 'url' => 'https://example.com/#kontak'],
+            ],
+            'slider_items' => [
+                [
+                    'title' => 'Info PMB',
+                    'subtitle' => 'Pendaftaran dibuka.',
+                    'image_url' => 'https://example.com/slide1.jpg',
+                    'cta_label' => 'Daftar',
+                    'cta_url' => 'https://example.com/pmb',
+                ],
+            ],
         ];
 
         $this->put(route('settings.landing-page.update'), $payload)
@@ -71,4 +85,3 @@ class LandingPageSettingsTest extends TestCase
         $this->get(route('settings.landing-page.index'))->assertForbidden();
     }
 }
-

@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
 
 function safe(value, fallback = '-') {
     const text = String(value ?? '').trim();
@@ -12,6 +13,23 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
     const stats = Array.isArray(content?.stats) ? content.stats : [];
     const programs = Array.isArray(content?.programs) ? content.programs : [];
     const highlights = Array.isArray(content?.highlights) ? content.highlights : [];
+    const navMenus = Array.isArray(content?.nav_menus) ? content.nav_menus : [];
+    const sliderItems = Array.isArray(content?.slider_items) ? content.slider_items : [];
+    const safeSliderItems = useMemo(() => (sliderItems.length ? sliderItems : [{
+        title: 'Informasi Kampus',
+        subtitle: 'Slider informasi kampus dapat diatur dari panel admin.',
+        image_url: '/halaman utama.png',
+        cta_label: '',
+        cta_url: '',
+    }]), [sliderItems]);
+    const [activeSlide, setActiveSlide] = useState(0);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setActiveSlide((prev) => (prev + 1) % safeSliderItems.length);
+        }, 5000);
+        return () => clearInterval(timer);
+    }, [safeSliderItems.length]);
 
     return (
         <>
@@ -25,7 +43,12 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                                 <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Official Website</p>
                                 <h1 className="text-lg font-black">{safe(content?.campus_name)}</h1>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                {navMenus.map((menu, index) => (
+                                    <a key={`nav-${index}`} href={menu?.url || '#'} className="rounded-lg px-3 py-2 text-xs font-semibold text-white/90 hover:bg-white/10">
+                                        {safe(menu?.label)}
+                                    </a>
+                                ))}
                                 {auth?.user ? <Link href={route('dashboard')} className="btn-outline border-white/30 text-white hover:bg-white/10">Dashboard</Link> : null}
                                 {!auth?.user && canLogin ? <Link href={route('login')} className="rounded-xl px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/35 hover:bg-white/10">Masuk</Link> : null}
                                 {!auth?.user && canRegister ? <Link href={route('register')} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-900" style={{ backgroundColor: 'var(--brand-accent)' }}>Daftar</Link> : null}
@@ -67,8 +90,45 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                         </article>
                     </section>
 
-                    <section className="mt-5 grid gap-5 lg:grid-cols-2">
-                        <article className="rounded-3xl border border-white/10 bg-white/5 p-6">
+                    <section id="informasi" className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-4">
+                        <div className="grid gap-4 lg:grid-cols-[1fr_0.95fr]">
+                            <article className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                                <img
+                                    src={safeSliderItems[activeSlide]?.image_url || '/halaman utama.png'}
+                                    alt={safeSliderItems[activeSlide]?.title}
+                                    className="h-[280px] w-full object-cover"
+                                />
+                            </article>
+                            <article className="flex flex-col justify-between rounded-2xl border border-white/10 bg-black/20 p-5">
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Informasi Kampus</p>
+                                    <h3 className="mt-2 text-2xl font-black">{safe(safeSliderItems[activeSlide]?.title)}</h3>
+                                    <p className="mt-3 text-sm leading-7 text-white/80">{safe(safeSliderItems[activeSlide]?.subtitle)}</p>
+                                </div>
+                                <div className="mt-5 flex flex-wrap items-center gap-3">
+                                    {safeSliderItems[activeSlide]?.cta_label && safeSliderItems[activeSlide]?.cta_url ? (
+                                        <a href={safeSliderItems[activeSlide]?.cta_url} className="rounded-xl px-4 py-2 text-sm font-bold text-slate-900" style={{ backgroundColor: 'var(--brand-accent)' }}>
+                                            {safeSliderItems[activeSlide]?.cta_label}
+                                        </a>
+                                    ) : null}
+                                    <div className="ml-auto flex gap-1">
+                                        {safeSliderItems.map((_, index) => (
+                                            <button
+                                                key={`dot-${index}`}
+                                                type="button"
+                                                className={`h-2.5 w-7 rounded-full ${activeSlide === index ? 'bg-white' : 'bg-white/30'}`}
+                                                onClick={() => setActiveSlide(index)}
+                                                aria-label={`Slide ${index + 1}`}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    </section>
+
+                    <section id="profil" className="mt-5 grid gap-5 lg:grid-cols-2">
+                        <article id="program" className="rounded-3xl border border-white/10 bg-white/5 p-6">
                             <h3 className="text-xl font-black">{safe(content?.about_title)}</h3>
                             <p className="mt-3 text-sm leading-7 text-white/80">{safe(content?.about_body)}</p>
                             <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/75">
@@ -103,7 +163,7 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                         </div>
                     </section>
 
-                    <footer className="mt-5 rounded-2xl border border-white/10 bg-black/30 px-5 py-4">
+                    <footer id="kontak" className="mt-5 rounded-2xl border border-white/10 bg-black/30 px-5 py-4">
                         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-white/70">
                             <p>© {new Date().getFullYear()} {safe(content?.campus_name)}. All rights reserved.</p>
                             <div className="flex flex-wrap gap-3">
@@ -118,4 +178,3 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
         </>
     );
 }
-

@@ -63,6 +63,15 @@ class LandingPageController extends Controller
             'socials.instagram' => ['nullable', 'url', 'max:500'],
             'socials.youtube' => ['nullable', 'url', 'max:500'],
             'socials.facebook' => ['nullable', 'url', 'max:500'],
+            'nav_menus' => ['required', 'array', 'min:3', 'max:10'],
+            'nav_menus.*.label' => ['required', 'string', 'max:40'],
+            'nav_menus.*.url' => ['required', 'url', 'max:500'],
+            'slider_items' => ['required', 'array', 'min:1', 'max:8'],
+            'slider_items.*.title' => ['required', 'string', 'max:120'],
+            'slider_items.*.subtitle' => ['required', 'string', 'max:220'],
+            'slider_items.*.image_url' => ['required', 'url', 'max:500'],
+            'slider_items.*.cta_label' => ['nullable', 'string', 'max:50'],
+            'slider_items.*.cta_url' => ['nullable', 'url', 'max:500'],
         ]);
 
         AppSetting::query()->updateOrCreate(
@@ -137,7 +146,29 @@ class LandingPageController extends Controller
                 'youtube' => '',
                 'facebook' => '',
             ],
+            'nav_menus' => [
+                ['label' => 'Beranda', 'url' => url('/')],
+                ['label' => 'Profil', 'url' => url('/#profil')],
+                ['label' => 'Program Studi', 'url' => url('/#program')],
+                ['label' => 'Informasi', 'url' => url('/#informasi')],
+                ['label' => 'Kontak', 'url' => url('/#kontak')],
+            ],
+            'slider_items' => [
+                [
+                    'title' => 'Penerimaan Mahasiswa Baru Telah Dibuka',
+                    'subtitle' => 'Daftar sekarang dan raih beasiswa pendidikan untuk calon mahasiswa berprestasi.',
+                    'image_url' => url('/halaman utama.png'),
+                    'cta_label' => 'Daftar PMB',
+                    'cta_url' => url('/pmb'),
+                ],
+                [
+                    'title' => 'Akreditasi dan Mutu Pembelajaran Terjaga',
+                    'subtitle' => 'Kampus fokus pada kualitas lulusan melalui kurikulum adaptif dan dosen profesional.',
+                    'image_url' => url('/logostai.png'),
+                    'cta_label' => 'Lihat Profil',
+                    'cta_url' => url('/#profil'),
+                ],
+            ],
         ];
     }
 }
-

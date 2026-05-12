@@ -36,6 +36,8 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
         highlights: Array.isArray(content?.highlights) ? content.highlights : [],
         colors: content?.colors || { primary: '#0f766e', accent: '#f59e0b' },
         socials: content?.socials || { instagram: '', youtube: '', facebook: '' },
+        nav_menus: Array.isArray(content?.nav_menus) ? content.nav_menus : [],
+        slider_items: Array.isArray(content?.slider_items) ? content.slider_items : [],
     });
 
     const save = () => {
@@ -55,6 +57,34 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
         const next = [...form.data.highlights];
         next[index] = { ...next[index], [key]: value };
         form.setData('highlights', next);
+    };
+
+    const updateNavMenu = (index, key, value) => {
+        const next = [...form.data.nav_menus];
+        next[index] = { ...next[index], [key]: value };
+        form.setData('nav_menus', next);
+    };
+
+    const addNavMenu = () => {
+        form.setData('nav_menus', [...form.data.nav_menus, { label: '', url: '' }]);
+    };
+
+    const removeNavMenu = (index) => {
+        form.setData('nav_menus', form.data.nav_menus.filter((_, idx) => idx !== index));
+    };
+
+    const updateSlider = (index, key, value) => {
+        const next = [...form.data.slider_items];
+        next[index] = { ...next[index], [key]: value };
+        form.setData('slider_items', next);
+    };
+
+    const addSlider = () => {
+        form.setData('slider_items', [...form.data.slider_items, { title: '', subtitle: '', image_url: '', cta_label: '', cta_url: '' }]);
+    };
+
+    const removeSlider = (index) => {
+        form.setData('slider_items', form.data.slider_items.filter((_, idx) => idx !== index));
     };
 
     return (
@@ -127,6 +157,41 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
                 </section>
 
                 <section className="panel p-5">
+                    <h3 className="text-sm font-bold text-slate-900">Menu Navbar</h3>
+                    <p className="mt-1 text-xs text-slate-500">Atur menu yang tampil di navbar landing page.</p>
+                    <div className="mt-4 space-y-3">
+                        {form.data.nav_menus.map((item, index) => (
+                            <div key={`menu-${index}`} className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1fr_1fr_auto]">
+                                <input className="form-input" placeholder="Label menu" value={item?.label || ''} onChange={(e) => updateNavMenu(index, 'label', e.target.value)} />
+                                <input className="form-input" placeholder="https://..." value={item?.url || ''} onChange={(e) => updateNavMenu(index, 'url', e.target.value)} />
+                                <button type="button" className="btn-outline" onClick={() => removeNavMenu(index)}>Hapus</button>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" className="btn-outline mt-3" onClick={addNavMenu}>Tambah Menu</button>
+                </section>
+
+                <section className="panel p-5">
+                    <h3 className="text-sm font-bold text-slate-900">Slider Informasi Kampus</h3>
+                    <p className="mt-1 text-xs text-slate-500">Slider utama di bawah hero, bisa berisi pengumuman/promo/informasi akademik.</p>
+                    <div className="mt-4 space-y-3">
+                        {form.data.slider_items.map((item, index) => (
+                            <div key={`slider-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="grid gap-2 md:grid-cols-2">
+                                    <input className="form-input md:col-span-2" placeholder="Judul slide" value={item?.title || ''} onChange={(e) => updateSlider(index, 'title', e.target.value)} />
+                                    <textarea className="form-input min-h-[80px] md:col-span-2" placeholder="Deskripsi singkat" value={item?.subtitle || ''} onChange={(e) => updateSlider(index, 'subtitle', e.target.value)} />
+                                    <input className="form-input md:col-span-2" placeholder="URL gambar slide" value={item?.image_url || ''} onChange={(e) => updateSlider(index, 'image_url', e.target.value)} />
+                                    <input className="form-input" placeholder="Label CTA (opsional)" value={item?.cta_label || ''} onChange={(e) => updateSlider(index, 'cta_label', e.target.value)} />
+                                    <input className="form-input" placeholder="URL CTA (opsional)" value={item?.cta_url || ''} onChange={(e) => updateSlider(index, 'cta_url', e.target.value)} />
+                                </div>
+                                <button type="button" className="btn-outline mt-2" onClick={() => removeSlider(index)}>Hapus Slide</button>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" className="btn-outline mt-3" onClick={addSlider}>Tambah Slide</button>
+                </section>
+
+                <section className="panel p-5">
                     <h3 className="text-sm font-bold text-slate-900">Statistik & Keunggulan</h3>
                     <div className="mt-4 grid gap-3 lg:grid-cols-2">
                         <div className="space-y-3">
@@ -166,4 +231,3 @@ export default function Page({ auth, content = null, previewUrl = '#', canPublis
         </AuthenticatedLayout>
     );
 }
-
