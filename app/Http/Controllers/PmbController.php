@@ -181,6 +181,7 @@ class PmbController extends Controller
             ->latest()
             ->get()
             ->map(function (Pmb $pmb) {
+                $readiness = $this->pmbPaymentReadiness($pmb);
                 $latestTransaction = $pmb->tagihans()
                     ->with(['transaksis' => fn ($q) => $q->latest()])
                     ->get()
@@ -195,6 +196,9 @@ class PmbController extends Controller
                     'nama_lengkap' => $pmb->nama_lengkap,
                     'status_pembayaran' => $pmb->status_pembayaran,
                     'snap_token' => $latestTransaction?->snap_token,
+                    'payment_ready' => $readiness['ready'],
+                    'payment_blockers' => $readiness['blockers'],
+                    'payment_checks' => $readiness['checks'],
                 ];
             });
 
@@ -326,13 +330,34 @@ class PmbController extends Controller
 
     private function isPmbReadyForPayment(Pmb $pmb): bool
     {
-        foreach (['prodi_id', 'gelombang', 'nama_lengkap', 'email', 'phone', 'asal_sekolah', 'dokumen_ktp', 'dokumen_ijazah', 'dokumen_foto'] as $field) {
-            if (blank($pmb->{$field})) {
-                return false;
-            }
-        }
+        return $this->pmbPaymentReadiness($pmb)['ready'];
+    }
 
-        return true;
+    private function pmbPaymentReadiness(Pmb $pmb): array
+    {
+        $checks = [
+            ['field' => 'prodi_id', 'label' => 'Program studi', 'ok' => filled($pmb->prodi_id)],
+            ['field' => 'gelombang', 'label' => 'Gelombang', 'ok' => filled($pmb->gelombang)],
+            ['field' => 'nama_lengkap', 'label' => 'Nama lengkap', 'ok' => filled($pmb->nama_lengkap)],
+            ['field' => 'email', 'label' => 'Email', 'ok' => filled($pmb->email)],
+            ['field' => 'phone', 'label' => 'No. HP', 'ok' => filled($pmb->phone)],
+            ['field' => 'asal_sekolah', 'label' => 'Asal sekolah', 'ok' => filled($pmb->asal_sekolah)],
+            ['field' => 'dokumen_ktp', 'label' => 'Dokumen KTP', 'ok' => filled($pmb->dokumen_ktp)],
+            ['field' => 'dokumen_ijazah', 'label' => 'Dokumen ijazah', 'ok' => filled($pmb->dokumen_ijazah)],
+            ['field' => 'dokumen_foto', 'label' => 'Pas foto', 'ok' => filled($pmb->dokumen_foto)],
+        ];
+
+        $blockers = collect($checks)
+            ->filter(fn (array $check) => ! $check['ok'])
+            ->pluck('label')
+            ->values()
+            ->all();
+
+        return [
+            'ready' => count($blockers) === 0,
+            'blockers' => $blockers,
+            'checks' => $checks,
+        ];
     }
 
     public function updateVerification(Pmb $pmb): RedirectResponse

@@ -23,8 +23,12 @@ function formatCurrency(value) {
 
 function PmbCard({ item, registrationFee, onCreateSnap, onPayNow, midtransEnabled }) {
     const isPaid = item.status_pembayaran === 'paid';
+    const paymentReady = item.payment_ready !== false;
+    const blockers = Array.isArray(item.payment_blockers) ? item.payment_blockers : [];
+    const checks = Array.isArray(item.payment_checks) ? item.payment_checks : [];
     const canCreatePayment = !item.snap_token && !isPaid;
     const canPay = item.snap_token && !isPaid;
+    const createDisabled = !midtransEnabled || !paymentReady;
 
     return (
         <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -54,9 +58,37 @@ function PmbCard({ item, registrationFee, onCreateSnap, onPayNow, midtransEnable
                 </div>
             </div>
 
+            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Kesiapan Pembayaran</p>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${paymentReady ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {paymentReady ? 'Data siap' : 'Perlu dilengkapi'}
+                    </span>
+                </div>
+                {checks.length > 0 && (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        {checks.map((check) => (
+                            <div
+                                key={check.field || check.label}
+                                className={`rounded-lg border px-2.5 py-2 text-[11px] font-semibold ${
+                                    check.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'
+                                }`}
+                            >
+                                {check.label}
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {blockers.length > 0 && (
+                    <p className="mt-3 text-xs leading-5 text-amber-700">
+                        Lengkapi: {blockers.join(', ')}.
+                    </p>
+                )}
+            </div>
+
             <div className="mt-4 flex flex-wrap gap-2">
                 {canCreatePayment && (
-                    <button onClick={() => onCreateSnap(item.id)} className="btn-primary" disabled={!midtransEnabled}>
+                    <button onClick={() => onCreateSnap(item.id)} className="btn-primary" disabled={createDisabled}>
                         Buat Pembayaran
                     </button>
                 )}
