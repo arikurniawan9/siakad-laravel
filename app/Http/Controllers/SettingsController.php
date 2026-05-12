@@ -400,6 +400,7 @@ class SettingsController extends Controller
                     && str_contains((string) ($item->resolution_notes ?? ''), '[bulk-ignore]')
                     && filled($item->resolved_at)
                     && now()->diffInMinutes($item->resolved_at) <= 5,
+                'undo_remaining_seconds' => $this->undoRemainingSeconds($item),
                 'tagihan' => $item->tagihan ? [
                     'id' => $item->tagihan->id,
                     'kode_tagihan' => $item->tagihan->kode_tagihan,
@@ -411,6 +412,77 @@ class SettingsController extends Controller
                 ] : null,
             ])->values(),
         ]);
+    }
+
+    public function exportFinanceReconciliationCsv(Request $request): StreamedResponse
+    {
+        $status = (string) $request->string('status', 'pending');
+        if (! in_array($status, ['pending', 'resolved', 'ignored', 'all'], true)) {
+            $status = 'pending';
+        }
+
+        $search = trim((string) $request->string('search'));
+        $limit = min(max((int) $request->integer('limit', 500), 1), 5000);
+
+        $rows = FinanceReconciliation::query()
+            ->with(['tagihan:id,kode_tagihan,tahun_akademik,semester_akademik', 'resolvedBy:id,name'])
+            ->when($status !== 'all', fn ($q) => $q->where('status', $status))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where('order_id', 'like', "%{$search}%")
+                    ->orWhere('transaction_id', 'like', "%{$search}%")
+                    ->orWhereHas('tagihan', fn ($t) => $t->where('kode_tagihan', 'like', "%{$search}%"));
+            })
+            ->latest('created_at')
+            ->limit($limit)
+            ->get();
+
+        $filename = 'finance-reconciliation-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'id',
+                'status',
+                'provider',
+                'order_id',
+                'transaction_id',
+                'payment_type',
+                'amount',
+                'tagihan_kode',
+                'tahun_akademik',
+                'semester_akademik',
+                'reason',
+                'resolution_notes',
+                'created_at',
+                'resolved_at',
+                'resolved_by',
+                'sla_age_hours',
+            ]);
+
+            foreach ($rows as $row) {
+                $ageHours = (int) floor(now()->diffInSeconds($row->created_at ?? now()) / 3600);
+                fputcsv($handle, [
+                    $row->id,
+                    $row->status,
+                    $row->provider,
+                    $row->order_id,
+                    $row->transaction_id,
+                    $row->payment_type,
+                    (float) $row->amount,
+                    $row->tagihan?->kode_tagihan,
+                    $row->tagihan?->tahun_akademik,
+                    $row->tagihan?->semester_akademik,
+                    $row->reason,
+                    $row->resolution_notes,
+                    optional($row->created_at)->toDateTimeString(),
+                    optional($row->resolved_at)->toDateTimeString(),
+                    $row->resolvedBy?->name,
+                    $ageHours,
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     public function resolveFinanceReconciliation(Request $request, FinanceReconciliation $item): RedirectResponse
@@ -1008,5 +1080,23 @@ class SettingsController extends Controller
         $clean = trim(str_replace('[bulk-ignore]', '', $notes));
 
         return $clean === '' ? null : $clean;
+    }
+
+    private function undoRemainingSeconds(FinanceReconciliation $item): int
+    {
+        if (! $item->resolved_at) {
+            return 0;
+        }
+        if ($item->status !== 'ignored') {
+            return 0;
+        }
+        if (! str_contains((string) ($item->resolution_notes ?? ''), '[bulk-ignore]')) {
+            return 0;
+        }
+
+        $elapsed = now()->diffInSeconds($item->resolved_at);
+        $remaining = 300 - $elapsed;
+
+        return max(0, $remaining);
     }
 }

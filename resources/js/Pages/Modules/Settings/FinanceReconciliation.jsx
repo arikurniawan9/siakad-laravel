@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ModuleHero from '@/Components/ModuleHero';
 import ConfirmationModal from '@/Components/ConfirmationModal';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 function formatRupiah(value) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
@@ -28,6 +28,7 @@ export default function Page({ auth, items = [], filters = null }) {
     const [confirmingAction, setConfirmingAction] = useState(null); // resolve|ignore
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedIds, setSelectedIds] = useState([]);
+    const [undoTicks, setUndoTicks] = useState({});
     const notesForm = useForm({ resolution_notes: '' });
 
     const summary = useMemo(() => {
@@ -36,6 +37,40 @@ export default function Page({ auth, items = [], filters = null }) {
         const ignored = items.filter((i) => i.status === 'ignored').length;
         return { total: items.length, pending, resolved, ignored };
     }, [items]);
+
+    useEffect(() => {
+        const initial = {};
+        items.forEach((item) => {
+            if (item.undo_available) {
+                initial[item.id] = Number(item.undo_remaining_seconds || 0);
+            }
+        });
+        setUndoTicks(initial);
+    }, [items]);
+
+    useEffect(() => {
+        const hasCountdown = Object.values(undoTicks).some((v) => v > 0);
+        if (!hasCountdown) return undefined;
+
+        const timer = setInterval(() => {
+            setUndoTicks((prev) => {
+                const next = { ...prev };
+                Object.keys(next).forEach((key) => {
+                    next[key] = Math.max(0, Number(next[key] || 0) - 1);
+                });
+                return next;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [undoTicks]);
+
+    const formatSeconds = (seconds) => {
+        const safe = Math.max(0, Number(seconds || 0));
+        const mm = String(Math.floor(safe / 60)).padStart(2, '0');
+        const ss = String(safe % 60).padStart(2, '0');
+        return `${mm}:${ss}`;
+    };
 
     const applyFilters = () => {
         router.get(route('settings.finance-reconciliation.index'), { status, search, limit }, { preserveScroll: true, preserveState: true });
@@ -159,6 +194,14 @@ export default function Page({ auth, items = [], filters = null }) {
                         Reset
                     </button>
                 </div>
+                <div className="mt-3 flex justify-end">
+                    <a
+                        href={route('settings.finance-reconciliation.export.csv', { status, search, limit })}
+                        className="btn-outline"
+                    >
+                        Export CSV
+                    </a>
+                </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                     <button type="button" className="btn-outline" onClick={toggleSelectAllPending}>
                         {allPendingSelected ? 'Batal Pilih Semua Pending' : 'Pilih Semua Pending'}
@@ -239,8 +282,9 @@ export default function Page({ auth, items = [], filters = null }) {
                                                         type="button"
                                                         className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
                                                         onClick={() => router.patch(route('settings.finance-reconciliation.undoIgnore', item.id), {}, { preserveScroll: true })}
+                                                        disabled={(undoTicks[item.id] ?? 0) <= 0}
                                                     >
-                                                        Undo Ignore
+                                                        Undo Ignore ({formatSeconds(undoTicks[item.id] ?? item.undo_remaining_seconds ?? 0)})
                                                     </button>
                                                 ) : null}
                                             </div>

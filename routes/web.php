@@ -197,6 +197,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/settings/finance-period-locks', [SettingsController::class, 'storeFinancePeriodLock'])->name('settings.finance-period-locks.store');
         Route::delete('/settings/finance-period-locks/{lock}', [SettingsController::class, 'destroyFinancePeriodLock'])->name('settings.finance-period-locks.destroy');
         Route::get('/settings/finance-reconciliation', [SettingsController::class, 'financeReconciliation'])->name('settings.finance-reconciliation.index');
+        Route::get('/settings/finance-reconciliation/export/csv', [SettingsController::class, 'exportFinanceReconciliationCsv'])->name('settings.finance-reconciliation.export.csv');
         Route::patch('/settings/finance-reconciliation/bulk', [SettingsController::class, 'bulkFinanceReconciliation'])->name('settings.finance-reconciliation.bulk');
         Route::patch('/settings/finance-reconciliation/{item}/undo-ignore', [SettingsController::class, 'undoIgnoreFinanceReconciliation'])->name('settings.finance-reconciliation.undoIgnore');
         Route::patch('/settings/finance-reconciliation/{item}/resolve', [SettingsController::class, 'resolveFinanceReconciliation'])->name('settings.finance-reconciliation.resolve');
