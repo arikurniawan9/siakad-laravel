@@ -26,11 +26,16 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
     }]), [sliderItems]);
     const [activeSlide, setActiveSlide] = useState(0);
     const [activeSection, setActiveSection] = useState('');
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
     useEffect(() => {
         const timer = setInterval(() => setActiveSlide((prev) => (prev + 1) % safeSliderItems.length), 5000);
         return () => clearInterval(timer);
     }, [safeSliderItems.length]);
+
+    useEffect(() => {
+        setMobileNavOpen(false);
+    }, [activeSection]);
 
     useEffect(() => {
         const ids = ['profil', 'program', 'informasi', 'kontak', 'berita'];
@@ -71,12 +76,20 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 lg:hidden"
+                                    onClick={() => setMobileNavOpen((prev) => !prev)}
+                                    aria-label="Toggle menu"
+                                >
+                                    <span className="text-lg leading-none">{mobileNavOpen ? '×' : '☰'}</span>
+                                </button>
                                 {auth?.user ? <Link href={route('dashboard')} className="btn-outline">Dashboard</Link> : null}
                                 {!auth?.user && canLogin ? <Link href={route('login')} className="btn-outline">Masuk</Link> : null}
                                 {!auth?.user && canRegister ? <Link href={route('register')} className="btn-primary">Daftar</Link> : null}
                             </div>
                         </div>
-                        <nav className="flex flex-wrap items-center gap-1 border-t border-slate-200 py-2">
+                        <nav className="hidden flex-wrap items-center gap-1 border-t border-slate-200 py-2 lg:flex">
                             {navMenus.map((menu, index) => (
                                 <div key={`nav-${index}`} className="group relative">
                                     <a
@@ -97,17 +110,48 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                                 </div>
                             ))}
                         </nav>
+                        {mobileNavOpen ? (
+                            <nav className="border-t border-slate-200 py-3 lg:hidden">
+                                <div className="space-y-1">
+                                    {navMenus.map((menu, index) => (
+                                        <div key={`m-nav-${index}`} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                                            <a href={menu?.url || '#'} className="block rounded-md px-2 py-1.5 text-sm font-semibold text-slate-800">
+                                                {safe(menu?.label)}
+                                            </a>
+                                            {Array.isArray(menu?.children) && menu.children.length > 0 ? (
+                                                <div className="mt-1 space-y-1 pl-2">
+                                                    {menu.children.map((child, childIndex) => (
+                                                        <a key={`m-child-${index}-${childIndex}`} href={child?.url || '#'} className="block rounded-md px-2 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100">
+                                                            {safe(child?.label)}
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    ))}
+                                </div>
+                            </nav>
+                        ) : null}
                     </div>
                 </header>
 
                 <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                     <section className={`grid gap-5 ${heroLayout === 'one-column' ? 'lg:grid-cols-1' : 'lg:grid-cols-[1.2fr_0.8fr]'}`}>
                         <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                            <img src={safeSliderItems[activeSlide]?.image_url || '/halaman utama.png'} alt={safeSliderItems[activeSlide]?.title} className="h-[340px] w-full object-cover" />
-                            <div className="p-5">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Selamat Datang</p>
-                                <h2 className="mt-2 text-3xl font-black text-slate-900">{safe(safeSliderItems[activeSlide]?.title)}</h2>
-                                <p className="mt-3 text-sm leading-7 text-slate-600">{safe(safeSliderItems[activeSlide]?.subtitle)}</p>
+                            <div className="relative h-[340px] overflow-hidden">
+                                {safeSliderItems.map((slide, index) => (
+                                    <img
+                                        key={`slide-${index}`}
+                                        src={slide?.image_url || '/halaman utama.png'}
+                                        alt={slide?.title || 'slide'}
+                                        className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${activeSlide === index ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
+                                    />
+                                ))}
+                            </div>
+                            <div className="p-6">
+                                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Selamat Datang</p>
+                                <h2 className="mt-2 text-3xl font-black leading-tight text-slate-900 sm:text-4xl">{safe(safeSliderItems[activeSlide]?.title)}</h2>
+                                <p className="mt-3 text-sm leading-7 text-slate-600 sm:text-[15px]">{safe(safeSliderItems[activeSlide]?.subtitle)}</p>
                                 <div className="mt-4 flex flex-wrap items-center gap-3">
                                     {safeSliderItems[activeSlide]?.cta_label && safeSliderItems[activeSlide]?.cta_url ? (
                                         <a href={safeSliderItems[activeSlide]?.cta_url} className="rounded-xl px-4 py-2 text-sm font-bold text-white" style={{ backgroundColor: 'var(--brand-primary)' }}>
@@ -126,9 +170,9 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                             </div>
                         </article>
                         <article className={`rounded-3xl border border-slate-200 bg-white p-6 shadow-sm ${heroLayout === 'one-column' ? 'hidden' : ''}`}>
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{safe(content?.tagline)}</p>
-                            <h3 className="mt-2 text-2xl font-black text-slate-900">{safe(content?.hero_title)}</h3>
-                            <p className="mt-3 text-sm leading-7 text-slate-600">{safe(content?.hero_subtitle)}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">{safe(content?.tagline)}</p>
+                            <h3 className="mt-2 text-2xl font-black leading-tight text-slate-900">{safe(content?.hero_title)}</h3>
+                            <p className="mt-3 text-sm leading-7 text-slate-600 sm:text-[15px]">{safe(content?.hero_subtitle)}</p>
                             <div className="mt-5 grid gap-2 sm:grid-cols-2">
                                 {stats.map((item, index) => (
                                     <div key={`stat-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -143,7 +187,7 @@ export default function Welcome({ auth, canLogin = true, canRegister = false, co
                     <section id="profil" className="mt-5 grid gap-5 lg:grid-cols-2">
                         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                             <h3 className="text-xl font-black text-slate-900">{safe(content?.about_title)}</h3>
-                            <p className="mt-3 text-sm leading-7 text-slate-600">{safe(content?.about_body)}</p>
+                            <p className="mt-3 text-sm leading-7 text-slate-600 sm:text-[15px]">{safe(content?.about_body)}</p>
                             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                                 <p>{safe(content?.address)}</p>
                                 <p className="mt-1">Email: {safe(content?.email)}</p>
