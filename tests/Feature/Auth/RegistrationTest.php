@@ -5,7 +5,6 @@ namespace Tests\Feature\Auth;
 use Carbon\Carbon;
 use App\Models\Jurusan;
 use App\Models\Prodi;
-use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -58,6 +57,6 @@ class RegistrationTest extends TestCase
             'prodi_id' => $prodi->id,
             'nim' => '2026PRD010001',
         ]);
-        $response->assertRedirect(RouteServiceProvider::HOME);
+        $response->assertRedirect('/pmb');
     }
 }

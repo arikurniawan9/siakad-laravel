@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Mahasiswa;
 use App\Models\Prodi;
 use App\Models\User;
-use App\Providers\RouteServiceProvider;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -103,7 +102,9 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(RouteServiceProvider::HOME);
+        return redirect()
+            ->route('pmb.index')
+            ->with('success', 'Akun berhasil dibuat. Lanjutkan pengisian data PMB Anda.');
     }
 
     private function generateNim(string $angkatan, string $kodeProdi): string
