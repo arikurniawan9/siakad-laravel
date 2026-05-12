@@ -158,9 +158,14 @@ export default function Page({ auth, stats, transactionStats = null, recentTrans
                             </p>
                             <p className="mt-1 text-xs text-rose-700">Prioritaskan penyelesaian agar data transaksi dan buku kas tetap sinkron.</p>
                         </div>
-                        <Link href={route('settings.finance-reconciliation.index', { status: 'pending' })} className="btn-outline border-rose-300 bg-white text-rose-700 hover:bg-rose-100">
-                            Tinjau Rekonsiliasi
-                        </Link>
+                        <div className="flex flex-wrap gap-2">
+                            <Link href={route('settings.finance-reconciliation.index', { status: 'pending', sort_by: 'priority', sort_dir: 'asc' })} className="btn-outline border-rose-300 bg-white text-rose-700 hover:bg-rose-100">
+                                Prioritas Tinggi
+                            </Link>
+                            <Link href={route('settings.finance-reconciliation.index', { status: 'pending', sort_by: 'created_at', sort_dir: 'asc' })} className="btn-outline border-rose-300 bg-white text-rose-700 hover:bg-rose-100">
+                                Pending Tertua
+                            </Link>
+                        </div>
                     </div>
                 </section>
             ) : null}

@@ -358,7 +358,7 @@ class SettingsController extends Controller
         $limit = min(max((int) $request->integer('limit', 50), 5), 200);
         $sortBy = (string) $request->string('sort_by', 'created_at');
         $sortDir = (string) $request->string('sort_dir', 'desc');
-        $allowedSorts = ['created_at', 'amount', 'status', 'provider', 'order_id'];
+        $allowedSorts = ['created_at', 'amount', 'status', 'provider', 'order_id', 'priority'];
         if (! in_array($sortBy, $allowedSorts, true)) {
             $sortBy = 'created_at';
         }
@@ -378,7 +378,24 @@ class SettingsController extends Controller
                     ->orWhereHas('tagihan', fn ($t) => $t->where('kode_tagihan', 'like', "%{$search}%"));
             });
 
-        if ($sortBy === 'status') {
+        if ($sortBy === 'priority') {
+            $priorityOrderAsc = "CASE
+                WHEN status = 'pending' AND TIMESTAMPDIFF(HOUR, created_at, NOW()) >= 24 THEN 1
+                WHEN status = 'pending' AND amount >= 5000000 THEN 2
+                WHEN status = 'pending' THEN 3
+                WHEN status = 'resolved' THEN 4
+                ELSE 5
+            END";
+            $priorityOrderDesc = "CASE
+                WHEN status = 'ignored' THEN 1
+                WHEN status = 'resolved' THEN 2
+                WHEN status = 'pending' AND TIMESTAMPDIFF(HOUR, created_at, NOW()) < 24 AND amount < 5000000 THEN 3
+                WHEN status = 'pending' AND amount >= 5000000 THEN 4
+                WHEN status = 'pending' AND TIMESTAMPDIFF(HOUR, created_at, NOW()) >= 24 THEN 5
+                ELSE 6
+            END";
+            $query->orderByRaw($sortDir === 'asc' ? $priorityOrderAsc : $priorityOrderDesc);
+        } elseif ($sortBy === 'status') {
             $query->orderByRaw("FIELD(status, 'pending', 'resolved', 'ignored')");
             if ($sortDir === 'desc') {
                 $query->reorder()->orderByRaw("FIELD(status, 'ignored', 'resolved', 'pending')");
@@ -412,6 +429,12 @@ class SettingsController extends Controller
                 'reason' => $item->reason,
                 'resolution_notes' => $item->resolution_notes,
                 'created_at' => optional($item->created_at)->toDateTimeString(),
+                'age_hours' => (int) floor(now()->diffInSeconds($item->created_at ?? now()) / 3600),
+                'priority' => $item->status !== 'pending'
+                    ? 'low'
+                    : ((int) floor(now()->diffInSeconds($item->created_at ?? now()) / 3600) >= 24
+                        ? 'high'
+                        : ((float) $item->amount >= 5000000 ? 'medium' : 'low')),
                 'resolved_at' => optional($item->resolved_at)->toDateTimeString(),
                 'resolved_by' => $item->resolvedBy ? [
                     'id' => $item->resolvedBy->id,
@@ -447,7 +470,7 @@ class SettingsController extends Controller
         $limit = min(max((int) $request->integer('limit', 500), 1), 5000);
         $sortBy = (string) $request->string('sort_by', 'created_at');
         $sortDir = (string) $request->string('sort_dir', 'desc');
-        $allowedSorts = ['created_at', 'amount', 'status', 'provider', 'order_id'];
+        $allowedSorts = ['created_at', 'amount', 'status', 'provider', 'order_id', 'priority'];
         if (! in_array($sortBy, $allowedSorts, true)) {
             $sortBy = 'created_at';
         }
@@ -464,7 +487,24 @@ class SettingsController extends Controller
                     ->orWhereHas('tagihan', fn ($t) => $t->where('kode_tagihan', 'like', "%{$search}%"));
             });
 
-        if ($sortBy === 'status') {
+        if ($sortBy === 'priority') {
+            $priorityOrderAsc = "CASE
+                WHEN status = 'pending' AND TIMESTAMPDIFF(HOUR, created_at, NOW()) >= 24 THEN 1
+                WHEN status = 'pending' AND amount >= 5000000 THEN 2
+                WHEN status = 'pending' THEN 3
+                WHEN status = 'resolved' THEN 4
+                ELSE 5
+            END";
+            $priorityOrderDesc = "CASE
+                WHEN status = 'ignored' THEN 1
+                WHEN status = 'resolved' THEN 2
+                WHEN status = 'pending' AND TIMESTAMPDIFF(HOUR, created_at, NOW()) < 24 AND amount < 5000000 THEN 3
+                WHEN status = 'pending' AND amount >= 5000000 THEN 4
+                WHEN status = 'pending' AND TIMESTAMPDIFF(HOUR, created_at, NOW()) >= 24 THEN 5
+                ELSE 6
+            END";
+            $query->orderByRaw($sortDir === 'asc' ? $priorityOrderAsc : $priorityOrderDesc);
+        } elseif ($sortBy === 'status') {
             $query->orderByRaw("FIELD(status, 'pending', 'resolved', 'ignored')");
             if ($sortDir === 'desc') {
                 $query->reorder()->orderByRaw("FIELD(status, 'ignored', 'resolved', 'pending')");

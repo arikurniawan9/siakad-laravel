@@ -18,6 +18,11 @@ const statusBadge = {
     resolved: 'bg-emerald-100 text-emerald-700',
     ignored: 'bg-slate-200 text-slate-700',
 };
+const priorityBadge = {
+    high: 'bg-rose-100 text-rose-700',
+    medium: 'bg-amber-100 text-amber-700',
+    low: 'bg-slate-100 text-slate-700',
+};
 
 export default function Page({ auth, items = [], filters = null }) {
     const { menu, flash } = usePage().props;
@@ -193,6 +198,7 @@ export default function Page({ auth, items = [], filters = null }) {
                     </select>
                     <select className="form-input" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                         <option value="created_at">Waktu</option>
+                        <option value="priority">Prioritas</option>
                         <option value="amount">Nominal</option>
                         <option value="status">Status</option>
                         <option value="provider">Provider</option>
@@ -241,6 +247,7 @@ export default function Page({ auth, items = [], filters = null }) {
                             <tr className="border-b border-slate-200 text-slate-500">
                                 <th className="px-3 py-2">Pilih</th>
                                 <th className="px-3 py-2">Status</th>
+                                <th className="px-3 py-2">Prioritas</th>
                                 <th className="px-3 py-2">Order</th>
                                 <th className="px-3 py-2">Tagihan</th>
                                 <th className="px-3 py-2">Nominal</th>
@@ -251,7 +258,7 @@ export default function Page({ auth, items = [], filters = null }) {
                         <tbody>
                             {items.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7" className="px-3 py-6 text-center text-slate-500">
+                                    <td colSpan="8" className="px-3 py-6 text-center text-slate-500">
                                         Tidak ada item.
                                     </td>
                                 </tr>
@@ -273,6 +280,11 @@ export default function Page({ auth, items = [], filters = null }) {
                                             </span>
                                         </td>
                                         <td className="px-3 py-2">
+                                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase ${priorityBadge[item.priority] || 'bg-slate-100 text-slate-700'}`}>
+                                                {item.priority || 'low'}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-2">
                                             <p className="font-semibold text-slate-800">{item.order_id}</p>
                                             <p className="mt-1 text-[11px] text-slate-500">{item.provider} • {item.payment_type || '-'} • trx {item.transaction_id || '-'}</p>
                                         </td>
@@ -283,7 +295,10 @@ export default function Page({ auth, items = [], filters = null }) {
                                             </p>
                                         </td>
                                         <td className="px-3 py-2 font-semibold text-slate-900">{formatRupiah(item.amount)}</td>
-                                        <td className="px-3 py-2 text-slate-600">{formatDateTime(item.created_at)}</td>
+                                        <td className="px-3 py-2 text-slate-600">
+                                            <p>{formatDateTime(item.created_at)}</p>
+                                            <p className="mt-1 text-[11px] text-slate-500">{item.age_hours || 0} jam</p>
+                                        </td>
                                         <td className="px-3 py-2">
                                             <div className="flex flex-wrap gap-2">
                                                 <button type="button" className="btn-outline" onClick={() => openAction('resolve', item)} disabled={item.status !== 'pending'}>
