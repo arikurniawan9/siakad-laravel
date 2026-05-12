@@ -35,6 +35,34 @@ const statusLabel = {
     cancelled: 'Dibatalkan',
 };
 
+const flowStepsByStatus = {
+    pending: ['Dibuat', 'Menunggu Callback', 'Belum Tercatat', 'Belum Final'],
+    success: ['Dibuat', 'Callback Masuk', 'Pembayaran Tercatat', 'Final'],
+    failed: ['Dibuat', 'Callback Masuk', 'Tidak Tercatat', 'Perlu Tindak Lanjut'],
+    expired: ['Dibuat', 'Expired', 'Tidak Tercatat', 'Perlu Tindak Lanjut'],
+    cancelled: ['Dibuat', 'Dibatalkan', 'Tidak Tercatat', 'Perlu Tindak Lanjut'],
+};
+
+const flowToneByStatus = {
+    pending: 'bg-amber-50 text-amber-700 border-amber-200',
+    success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    failed: 'bg-rose-50 text-rose-700 border-rose-200',
+    expired: 'bg-slate-100 text-slate-700 border-slate-200',
+    cancelled: 'bg-slate-100 text-slate-700 border-slate-200',
+};
+
+function FlowBadge({ status }) {
+    const steps = flowStepsByStatus[status] || flowStepsByStatus.pending;
+    const tone = flowToneByStatus[status] || flowToneByStatus.pending;
+
+    return (
+        <div className={`rounded-xl border px-2.5 py-2 text-[11px] font-semibold ${tone}`}>
+            <p className="uppercase tracking-[0.16em] opacity-75">Progress Alur</p>
+            <p className="mt-1 leading-5">{steps.join(' • ')}</p>
+        </div>
+    );
+}
+
 function PaginationButtons({ links = [], onClick }) {
     if (!links.length) return null;
 
@@ -140,6 +168,9 @@ function TransactionCard({ trx, onCopy, onDetail }) {
                     </a>
                 ) : null}
             </div>
+            <div className="mt-3">
+                <FlowBadge status={trx.status} />
+            </div>
         </article>
     );
 }
@@ -160,6 +191,7 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
         { label: 'Pending', value: stats?.pending ?? 0, tone: 'text-amber-700' },
         { label: 'Gagal', value: stats?.failed ?? 0, tone: 'text-rose-700' },
     ];
+    const callbackHealth = Math.max(0, (stats?.total_transaksi ?? 0) - (stats?.success ?? 0) - (stats?.pending ?? 0));
 
     const applyFilters = (pageUrl = null) => {
         const params = {
@@ -231,7 +263,7 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
     };
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-bold text-slate-900">Transaksi Keuangan</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Transaksi Keuangan" />
 
             {toast?.message && (
@@ -275,6 +307,20 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                                     <p className={`mt-2 text-2xl font-black ${item.tone}`}>{item.value}</p>
                                 </article>
                             ))}
+                        </div>
+                    </div>
+                    <div className="grid gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 text-xs sm:grid-cols-3 sm:px-6">
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                            <p className="font-semibold uppercase tracking-[0.16em] text-slate-500">Callback Aktif</p>
+                            <p className="mt-1 text-sm font-bold text-slate-900">{(stats?.success ?? 0) + (stats?.failed ?? 0) + (stats?.expired ?? 0) + (stats?.cancelled ?? 0)}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                            <p className="font-semibold uppercase tracking-[0.16em] text-slate-500">Belum Final</p>
+                            <p className="mt-1 text-sm font-bold text-amber-700">{stats?.pending ?? 0}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                            <p className="font-semibold uppercase tracking-[0.16em] text-slate-500">Perlu Review</p>
+                            <p className="mt-1 text-sm font-bold text-rose-700">{callbackHealth}</p>
                         </div>
                     </div>
                 </section>
@@ -385,6 +431,9 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                                             <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${statusStyles[trx.status] || 'bg-slate-100 text-slate-700'}`}>
                                                 {statusLabel[trx.status] || trx.status}
                                             </span>
+                                            <div className="mt-2">
+                                                <FlowBadge status={trx.status} />
+                                            </div>
                                         </td>
                                         <td className="px-3 py-3 text-slate-600">
                                             <div>{dateFormat(trx.paid_at || trx.created_at)}</div>
@@ -447,6 +496,9 @@ export default function Page({ auth, stats = null, filters = null, transaksis = 
                                     <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${statusStyles[selectedTransaction.status] || 'bg-slate-100 text-slate-700'}`}>
                                         {statusLabel[selectedTransaction.status] || selectedTransaction.status}
                                     </p>
+                                    <div className="mt-3">
+                                        <FlowBadge status={selectedTransaction.status} />
+                                    </div>
                                 </div>
                                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Invoice</p>
