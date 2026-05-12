@@ -234,6 +234,15 @@ export default function Page({ auth, items = [], filters = null }) {
                                                 <button type="button" className="btn-outline" onClick={() => openAction('ignore', item)} disabled={item.status !== 'pending'}>
                                                     Ignore
                                                 </button>
+                                                {item.undo_available ? (
+                                                    <button
+                                                        type="button"
+                                                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
+                                                        onClick={() => router.patch(route('settings.finance-reconciliation.undoIgnore', item.id), {}, { preserveScroll: true })}
+                                                    >
+                                                        Undo Ignore
+                                                    </button>
+                                                ) : null}
                                             </div>
                                         </td>
                                     </tr>

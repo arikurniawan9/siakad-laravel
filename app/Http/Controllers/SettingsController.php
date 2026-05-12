@@ -396,6 +396,10 @@ class SettingsController extends Controller
                     'name' => $item->resolvedBy->name,
                     'email' => $item->resolvedBy->email,
                 ] : null,
+                'undo_available' => $item->status === 'ignored'
+                    && str_contains((string) ($item->resolution_notes ?? ''), '[bulk-ignore]')
+                    && filled($item->resolved_at)
+                    && now()->diffInMinutes($item->resolved_at) <= 5,
                 'tagihan' => $item->tagihan ? [
                     'id' => $item->tagihan->id,
                     'kode_tagihan' => $item->tagihan->kode_tagihan,
@@ -473,16 +477,23 @@ class SettingsController extends Controller
             ->get();
 
         $processed = 0;
+        $processedIds = [];
         foreach ($items as $item) {
+            $effectiveNotes = $notes;
+            if ($action === 'ignore') {
+                $effectiveNotes = trim(($effectiveNotes ? $effectiveNotes.' ' : '').'[bulk-ignore]');
+            }
+
             $ok = $action === 'resolve'
-                ? $this->resolveReconciliationItem($item, $notes, $userId)
-                : $this->ignoreReconciliationItem($item, $notes, $userId);
+                ? $this->resolveReconciliationItem($item, $effectiveNotes, $userId)
+                : $this->ignoreReconciliationItem($item, $effectiveNotes, $userId);
 
             if (! $ok) {
                 continue;
             }
 
             $processed++;
+            $processedIds[] = (int) $item->id;
 
             Audit::log(
                 source: 'finance',
@@ -498,7 +509,53 @@ class SettingsController extends Controller
             return back()->with('error', 'Tidak ada item pending yang bisa diproses.');
         }
 
+        Audit::log(
+            source: 'finance',
+            action: $action === 'resolve' ? 'reconciliation.bulk_resolve' : 'reconciliation.bulk_ignore',
+            entityType: 'finance_reconciliation',
+            entityId: null,
+            message: $action === 'resolve' ? 'Bulk resolve rekonsiliasi' : 'Bulk ignore rekonsiliasi',
+            meta: [
+                'processed_count' => $processed,
+                'selected_count' => count($data['item_ids']),
+                'item_ids' => $processedIds,
+            ],
+        );
+
         return back()->with('success', "Bulk {$action} berhasil untuk {$processed} item.");
+    }
+
+    public function undoIgnoreFinanceReconciliation(Request $request, FinanceReconciliation $item): RedirectResponse
+    {
+        if ($item->status !== 'ignored') {
+            return back()->with('error', 'Item bukan status ignored.');
+        }
+
+        if (! str_contains((string) ($item->resolution_notes ?? ''), '[bulk-ignore]')) {
+            return back()->with('error', 'Undo hanya berlaku untuk hasil bulk ignore.');
+        }
+
+        if (! $item->resolved_at || now()->diffInMinutes($item->resolved_at) > 5) {
+            return back()->with('error', 'Waktu undo sudah lewat (maksimal 5 menit).');
+        }
+
+        $item->update([
+            'status' => 'pending',
+            'resolved_at' => null,
+            'resolved_by_user_id' => null,
+            'resolution_notes' => $this->stripBulkIgnoreMarker((string) ($item->resolution_notes ?? '')),
+        ]);
+
+        Audit::log(
+            source: 'finance',
+            action: 'reconciliation.undo_ignore',
+            entityType: 'finance_reconciliation',
+            entityId: (int) $item->id,
+            message: 'Undo ignore rekonsiliasi',
+            meta: ['order_id' => $item->order_id],
+        );
+
+        return back()->with('success', 'Ignore dibatalkan. Item kembali ke pending.');
     }
 
     public function backupDatabase(Request $request): RedirectResponse
@@ -944,5 +1001,12 @@ class SettingsController extends Controller
         ]);
 
         return true;
+    }
+
+    private function stripBulkIgnoreMarker(string $notes): ?string
+    {
+        $clean = trim(str_replace('[bulk-ignore]', '', $notes));
+
+        return $clean === '' ? null : $clean;
     }
 }
