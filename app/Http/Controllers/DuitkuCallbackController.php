@@ -2,23 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Pmb;
 use App\Models\FinanceReconciliation;
+use App\Models\Pmb;
 use App\Models\Transaksi;
 use App\Notifications\PaymentFailed;
 use App\Notifications\PaymentSucceeded;
-use App\Services\MidtransService;
+use App\Services\PaymentGatewayConfigService;
 use App\Services\PaymentRecordingService;
-use App\Support\Audit;
 use App\Support\FinancePeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class MidtransCallbackController extends Controller
+class DuitkuCallbackController extends Controller
 {
     public function __construct(
-        private readonly MidtransService $midtransService,
+        private readonly PaymentGatewayConfigService $gatewayConfigService,
         private readonly PaymentRecordingService $paymentRecordingService,
     ) {
     }
@@ -26,121 +25,87 @@ class MidtransCallbackController extends Controller
     public function __invoke(Request $request): JsonResponse
     {
         $payload = $request->all();
+        $merchantCode = (string) ($payload['merchantCode'] ?? '');
+        $amount = (string) ($payload['amount'] ?? '');
+        $orderId = (string) ($payload['merchantOrderId'] ?? '');
+        $signature = (string) ($payload['signature'] ?? '');
 
-        if (! $this->midtransService->isValidSignature($payload)) {
-            return response()->json(['message' => 'Invalid signature'], 403);
+        $duitku = $this->gatewayConfigService->duitku();
+        $configuredApiKey = (string) ($duitku['api_key'] ?? '');
+        $configuredMerchantCode = (string) ($duitku['merchant_code'] ?? '');
+
+        if ($configuredApiKey === '') {
+            return response()->json(['message' => 'Duitku API key is not configured'], 503);
         }
 
-        $orderId = $payload['order_id'] ?? null;
-        $transactionStatus = $payload['transaction_status'] ?? 'pending';
-        $fraudStatus = $payload['fraud_status'] ?? null;
-        $paymentType = $payload['payment_type'] ?? null;
-        $transactionId = $payload['transaction_id'] ?? null;
+        if ($configuredMerchantCode !== '' && ! hash_equals($configuredMerchantCode, $merchantCode)) {
+            return response()->json(['message' => 'Invalid merchant code'], 403);
+        }
+
+        $expected = md5($merchantCode.$amount.$orderId.$configuredApiKey);
+
+        if (! hash_equals($expected, $signature)) {
+            return response()->json(['message' => 'Invalid signature'], 403);
+        }
 
         $transaksi = Transaksi::query()->where('order_id', $orderId)->latest()->first();
         if (! $transaksi) {
             return response()->json(['message' => 'Order not found'], 404);
         }
 
-        $status = match ($transactionStatus) {
-            'settlement', 'capture' => $fraudStatus === 'challenge' ? 'pending' : 'success',
-            'deny' => 'failed',
-            'cancel' => 'cancelled',
-            'expire' => 'expired',
+        $resultCode = (string) ($payload['resultCode'] ?? '01');
+        $status = match ($resultCode) {
+            '00' => 'success',
+            '01' => 'failed',
             default => 'pending',
         };
 
         $notifyTargets = [];
 
-        DB::transaction(function () use ($transaksi, $status, $paymentType, $transactionId, $fraudStatus, $payload, &$notifyTargets) {
+        DB::transaction(function () use ($transaksi, $payload, $status, &$notifyTargets) {
             $transaksi->update([
                 'status' => $status,
-                'payment_type' => $paymentType,
-                'transaction_id' => $transactionId,
-                'fraud_status' => $fraudStatus,
+                'payment_type' => (string) ($payload['paymentCode'] ?? $transaksi->payment_type),
+                'transaction_id' => (string) ($payload['reference'] ?? $transaksi->transaction_id),
                 'payload' => $payload,
                 'paid_at' => $status === 'success' ? now() : null,
             ]);
 
             $tagihan = $transaksi->tagihan;
-            Audit::log(
-                source: 'finance',
-                action: 'midtrans.callback',
-                entityType: 'transaksi',
-                entityId: (int) $transaksi->id,
-                message: 'Midtrans callback diterima',
-                meta: [
-                    'order_id' => (string) $transaksi->order_id,
-                    'status' => (string) $status,
-                    'payment_type' => $paymentType,
-                    'transaction_id' => $transactionId,
-                ],
-                userId: null,
-            );
+            if (! $tagihan) {
+                return;
+            }
 
-            if ($status === 'success' && $tagihan) {
+            if ($status === 'success') {
                 if (FinancePeriod::isLocked($tagihan->tahun_akademik, $tagihan->semester_akademik)) {
                     FinanceReconciliation::query()->firstOrCreate(
-                        ['provider' => 'midtrans', 'order_id' => (string) $transaksi->order_id],
+                        ['provider' => 'duitku', 'order_id' => (string) $transaksi->order_id],
                         [
                             'transaksi_id' => $transaksi->id,
                             'tagihan_id' => $tagihan->id,
                             'amount' => (float) $transaksi->gross_amount,
-                            'payment_type' => $paymentType,
-                            'transaction_id' => $transactionId,
+                            'payment_type' => $transaksi->payment_type,
+                            'transaction_id' => $transaksi->transaction_id,
                             'status' => 'pending',
                             'reason' => 'Periode terkunci (closing) saat callback sukses diterima.',
                             'created_at' => now(),
                         ]
                     );
 
-                    Audit::log(
-                        source: 'finance',
-                        action: 'period.locked_reject_gateway_payment',
-                        entityType: 'tagihan',
-                        entityId: (int) $tagihan->id,
-                        message: 'Pembayaran gateway ditolak karena periode dikunci',
-                        meta: [
-                            'kode_tagihan' => (string) $tagihan->kode_tagihan,
-                            'order_id' => (string) $transaksi->order_id,
-                            'gross_amount' => (float) $transaksi->gross_amount,
-                        ],
-                        userId: null,
-                    );
-
                     return;
                 }
 
-                $createdPembayaran = $this->paymentRecordingService->recordGatewayPayment(
+                $this->paymentRecordingService->recordGatewayPayment(
                     $tagihan,
-                    'midtrans',
+                    'duitku',
                     (string) $transaksi->order_id,
                     (float) $transaksi->gross_amount,
                 );
-
-                $tagihan->refreshStatusFromPayments();
-
-                if ($createdPembayaran) {
-                    Audit::log(
-                        source: 'finance',
-                        action: 'pembayaran.create_from_gateway',
-                        entityType: 'pembayaran',
-                        entityId: (int) $createdPembayaran->id,
-                        message: 'Pembayaran gateway dicatat',
-                        meta: [
-                            'tagihan_id' => (int) $tagihan->id,
-                            'kode_tagihan' => (string) $tagihan->kode_tagihan,
-                            'provider' => 'midtrans',
-                            'reference' => (string) $transaksi->order_id,
-                            'amount' => (float) $transaksi->gross_amount,
-                            'tagihan_status' => (string) $tagihan->status,
-                        ],
-                        userId: null,
-                    );
-                }
             }
 
-            if ($tagihan && $status === 'success') {
+            $tagihan->refreshStatusFromPayments();
+
+            if ($status === 'success') {
                 if ($tagihan->pmb_id) {
                     $pmbStatus = $tagihan->status === 'paid' ? 'paid' : 'pending';
                     Pmb::query()->whereKey($tagihan->pmb_id)->update(['status_pembayaran' => $pmbStatus]);
@@ -179,11 +144,7 @@ class MidtransCallbackController extends Controller
                         ];
                     }
                 }
-            } elseif ($tagihan && in_array($status, ['failed', 'expired', 'cancelled'], true)) {
-                if ($tagihan->pembayarans()->exists()) {
-                    $tagihan->refreshStatusFromPayments();
-                }
-
+            } elseif (in_array($status, ['failed', 'expired', 'cancelled'], true)) {
                 if ($tagihan->pmb_id) {
                     $pmbStatus = $tagihan->status === 'paid' ? 'paid' : 'failed';
                     Pmb::query()->whereKey($tagihan->pmb_id)->update(['status_pembayaran' => $pmbStatus]);

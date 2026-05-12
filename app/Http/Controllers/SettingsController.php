@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Models\DatabaseMaintenanceLog;
 use App\Models\FinanceReconciliation;
 use App\Models\FinancePeriodLock;
@@ -17,6 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -62,6 +64,7 @@ class SettingsController extends Controller
                 'filename' => $backup['filename'],
                 'size' => (int) $backup['size'],
                 'last_modified_at' => date('Y-m-d H:i:s', (int) $backup['last_modified']),
+                'last_modified_ts' => (int) $backup['last_modified'],
             ])->values(),
             'maintenanceLogs' => DatabaseMaintenanceLog::query()
                 ->with('user:id,name,email')
@@ -105,6 +108,7 @@ class SettingsController extends Controller
                 'filename' => $backup['filename'],
                 'size' => (int) $backup['size'],
                 'last_modified_at' => date('Y-m-d H:i:s', (int) $backup['last_modified']),
+                'last_modified_ts' => (int) $backup['last_modified'],
             ])->values(),
             'maintenanceLogs' => DatabaseMaintenanceLog::query()
                 ->with('user:id,name,email')
@@ -134,6 +138,111 @@ class SettingsController extends Controller
                 'log_limit' => $logLimit,
             ],
         ]);
+    }
+
+    public function paymentGateway(): Response
+    {
+        $config = $this->paymentGatewayConfig();
+        $activeProvider = (string) ($config['active_provider'] ?? 'midtrans');
+        $providers = ['midtrans', 'xendit', 'duitku', 'manual'];
+        if (! in_array($activeProvider, $providers, true)) {
+            $activeProvider = 'midtrans';
+        }
+
+        return Inertia::render('Modules/Settings/PaymentGateway', [
+            'gatewaySettings' => [
+                'active_provider' => $activeProvider,
+                'is_production' => (bool) ($config['is_production'] ?? false),
+                'providers' => [
+                    'midtrans' => [
+                        'is_configured' => filled($config['midtrans']['server_key'] ?? null) && filled($config['midtrans']['client_key'] ?? null),
+                        'server_key' => $this->maskSecret((string) ($config['midtrans']['server_key'] ?? '')),
+                        'client_key' => $this->maskSecret((string) ($config['midtrans']['client_key'] ?? '')),
+                    ],
+                    'xendit' => [
+                        'is_configured' => filled($config['xendit']['secret_key'] ?? null),
+                        'secret_key' => $this->maskSecret((string) ($config['xendit']['secret_key'] ?? '')),
+                        'public_key' => $this->maskSecret((string) ($config['xendit']['public_key'] ?? '')),
+                        'callback_token' => $this->maskSecret((string) ($config['xendit']['callback_token'] ?? '')),
+                    ],
+                    'duitku' => [
+                        'is_configured' => filled($config['duitku']['merchant_code'] ?? null) && filled($config['duitku']['api_key'] ?? null),
+                        'merchant_code' => $this->maskSecret((string) ($config['duitku']['merchant_code'] ?? '')),
+                        'api_key' => $this->maskSecret((string) ($config['duitku']['api_key'] ?? '')),
+                    ],
+                ],
+            ],
+            'callbackUrls' => [
+                'midtrans' => route('payments.midtrans.callback'),
+                'xendit' => route('payments.xendit.callback'),
+                'duitku' => route('payments.duitku.callback'),
+            ],
+        ]);
+    }
+
+    public function updatePaymentGateway(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'active_provider' => ['required', 'string', Rule::in(['midtrans', 'xendit', 'duitku', 'manual'])],
+            'is_production' => ['boolean'],
+            'midtrans_server_key' => ['nullable', 'string', 'max:255'],
+            'midtrans_client_key' => ['nullable', 'string', 'max:255'],
+            'xendit_secret_key' => ['nullable', 'string', 'max:255'],
+            'xendit_public_key' => ['nullable', 'string', 'max:255'],
+            'xendit_callback_token' => ['nullable', 'string', 'max:255'],
+            'duitku_merchant_code' => ['nullable', 'string', 'max:80'],
+            'duitku_api_key' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $current = $this->paymentGatewayConfig();
+
+        $payload = [
+            'active_provider' => (string) $validated['active_provider'],
+            'is_production' => (bool) ($validated['is_production'] ?? false),
+            'midtrans' => [
+                'server_key' => $this->resolveSecretValue((string) ($validated['midtrans_server_key'] ?? ''), (string) ($current['midtrans']['server_key'] ?? '')),
+                'client_key' => $this->resolveSecretValue((string) ($validated['midtrans_client_key'] ?? ''), (string) ($current['midtrans']['client_key'] ?? '')),
+            ],
+            'xendit' => [
+                'secret_key' => $this->resolveSecretValue((string) ($validated['xendit_secret_key'] ?? ''), (string) ($current['xendit']['secret_key'] ?? '')),
+                'public_key' => $this->resolveSecretValue((string) ($validated['xendit_public_key'] ?? ''), (string) ($current['xendit']['public_key'] ?? '')),
+                'callback_token' => $this->resolveSecretValue((string) ($validated['xendit_callback_token'] ?? ''), (string) ($current['xendit']['callback_token'] ?? '')),
+            ],
+            'duitku' => [
+                'merchant_code' => $this->resolveSecretValue((string) ($validated['duitku_merchant_code'] ?? ''), (string) ($current['duitku']['merchant_code'] ?? '')),
+                'api_key' => $this->resolveSecretValue((string) ($validated['duitku_api_key'] ?? ''), (string) ($current['duitku']['api_key'] ?? '')),
+            ],
+        ];
+
+        $activeProvider = (string) $payload['active_provider'];
+        if ($activeProvider !== 'manual' && ! $this->isPaymentProviderReady($activeProvider, $payload)) {
+            throw ValidationException::withMessages([
+                'active_provider' => "Konfigurasi {$activeProvider} belum lengkap untuk dijadikan provider aktif.",
+            ]);
+        }
+
+        AppSetting::query()->updateOrCreate(
+            ['key' => 'payment_gateway'],
+            ['value' => $payload]
+        );
+
+        return back()->with('success', 'Pengaturan payment gateway berhasil disimpan.');
+    }
+
+    public function testPaymentGateway(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'provider' => ['nullable', 'string', Rule::in(['midtrans', 'xendit', 'duitku', 'manual'])],
+        ]);
+
+        $config = $this->paymentGatewayConfig();
+        $provider = (string) ($validated['provider'] ?? $config['active_provider'] ?? 'midtrans');
+
+        if (! $this->isPaymentProviderReady($provider, $config)) {
+            return back()->with('error', "Konfigurasi {$provider} belum lengkap.");
+        }
+
+        return back()->with('success', "Tes konfigurasi {$provider} berhasil (format credential valid).");
     }
 
     public function financePeriodLocks(Request $request): Response
@@ -458,14 +567,14 @@ class SettingsController extends Controller
 
     public function backupDatabase(Request $request): RedirectResponse
     {
-        try {
-            $data = $request->validate([
-                'mode' => ['nullable', 'string', Rule::in(['full', 'custom'])],
-                'label' => ['nullable', 'string', 'max:40'],
-                'tables' => ['nullable', 'array', 'min:1'],
-                'tables.*' => ['string', Rule::in($this->databaseMaintenanceService->listTables())],
-            ]);
+        $data = $request->validate([
+            'mode' => ['nullable', 'string', Rule::in(['full', 'custom'])],
+            'label' => ['nullable', 'string', 'max:40'],
+            'tables' => ['nullable', 'array', 'min:1'],
+            'tables.*' => ['string', Rule::in($this->databaseMaintenanceService->listTables())],
+        ]);
 
+        try {
             $mode = (string) ($data['mode'] ?? 'full');
             $tables = $mode === 'custom' ? ($data['tables'] ?? []) : null;
             $label = filled($data['label'] ?? null) ? trim((string) $data['label']) : null;
@@ -480,7 +589,15 @@ class SettingsController extends Controller
             $this->logMaintenance($request, 'backup', 'success', $backup['filename'], $message);
 
             return back()->with('success', $message);
+        } catch (ValidationException $exception) {
+            throw $exception;
         } catch (\Throwable $exception) {
+            logger()->error('Database backup failed', [
+                'user_id' => $request->user()?->id,
+                'mode' => (string) ($data['mode'] ?? 'full'),
+                'tables_count' => is_array($data['tables'] ?? null) ? count($data['tables']) : 0,
+                'error' => $exception->getMessage(),
+            ]);
             $this->logMaintenance($request, 'backup', 'failed', null, $exception->getMessage());
 
             return back()->withErrors(['backup_file' => $this->humanizeDatabaseException($exception)]);
@@ -632,7 +749,7 @@ class SettingsController extends Controller
         $userId = $request->user()?->id;
 
         try {
-            if ($userId && ! DB::table('users')->whereKey($userId)->exists()) {
+            if ($userId && ! DB::table('users')->where('id', $userId)->exists()) {
                 $userId = null;
             }
 
@@ -697,5 +814,67 @@ class SettingsController extends Controller
         }
 
         return 'Terjadi kesalahan saat menjalankan aksi database. Silakan coba lagi atau cek log server.';
+    }
+
+    private function paymentGatewayConfig(): array
+    {
+        $stored = AppSetting::query()->where('key', 'payment_gateway')->first();
+        $value = is_array($stored?->value) ? $stored->value : [];
+
+        return [
+            'active_provider' => (string) ($value['active_provider'] ?? 'midtrans'),
+            'is_production' => (bool) ($value['is_production'] ?? false),
+            'midtrans' => [
+                'server_key' => (string) ($value['midtrans']['server_key'] ?? ''),
+                'client_key' => (string) ($value['midtrans']['client_key'] ?? ''),
+            ],
+            'xendit' => [
+                'secret_key' => (string) ($value['xendit']['secret_key'] ?? ''),
+                'public_key' => (string) ($value['xendit']['public_key'] ?? ''),
+                'callback_token' => (string) ($value['xendit']['callback_token'] ?? ''),
+            ],
+            'duitku' => [
+                'merchant_code' => (string) ($value['duitku']['merchant_code'] ?? ''),
+                'api_key' => (string) ($value['duitku']['api_key'] ?? ''),
+            ],
+        ];
+    }
+
+    private function maskSecret(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        if (strlen($value) <= 8) {
+            return str_repeat('*', strlen($value));
+        }
+
+        return substr($value, 0, 4).str_repeat('*', max(strlen($value) - 8, 4)).substr($value, -4);
+    }
+
+    private function resolveSecretValue(string $input, string $fallback): string
+    {
+        $trimmed = trim($input);
+        if ($trimmed === '') {
+            return $fallback;
+        }
+
+        if (str_contains($trimmed, '*')) {
+            return $fallback;
+        }
+
+        return $trimmed;
+    }
+
+    private function isPaymentProviderReady(string $provider, array $config): bool
+    {
+        return match ($provider) {
+            'midtrans' => filled($config['midtrans']['server_key'] ?? null) && filled($config['midtrans']['client_key'] ?? null),
+            'xendit' => filled($config['xendit']['secret_key'] ?? null) && filled($config['xendit']['callback_token'] ?? null),
+            'duitku' => filled($config['duitku']['merchant_code'] ?? null) && filled($config['duitku']['api_key'] ?? null),
+            'manual' => true,
+            default => false,
+        };
     }
 }
