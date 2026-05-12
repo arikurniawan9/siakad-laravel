@@ -435,6 +435,13 @@ class SettingsController extends Controller
                     : ((int) floor(now()->diffInSeconds($item->created_at ?? now()) / 3600) >= 24
                         ? 'high'
                         : ((float) $item->amount >= 5000000 ? 'medium' : 'low')),
+                'recommendation' => $item->status !== 'pending'
+                    ? 'Selesai diproses, cukup monitor audit trail.'
+                    : ((int) floor(now()->diffInSeconds($item->created_at ?? now()) / 3600) >= 24
+                        ? 'Prioritaskan segera: item telah melewati SLA 24 jam.'
+                        : ((float) $item->amount >= 5000000
+                            ? 'Prioritas menengah: nominal besar, verifikasi dan catat lebih dulu.'
+                            : 'Prioritas normal: proses sesuai antrean harian.')),
                 'resolved_at' => optional($item->resolved_at)->toDateTimeString(),
                 'resolved_by' => $item->resolvedBy ? [
                     'id' => $item->resolvedBy->id,

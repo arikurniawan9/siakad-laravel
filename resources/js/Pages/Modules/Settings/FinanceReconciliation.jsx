@@ -318,6 +318,7 @@ export default function Page({ auth, items = [], filters = null }) {
                                                     </button>
                                                 ) : null}
                                             </div>
+                                            <p className="mt-2 text-[11px] text-slate-500">{item.recommendation || '-'}</p>
                                         </td>
                                     </tr>
                                 ))
