@@ -13,6 +13,7 @@ use App\Notifications\PmbRegistered;
 use App\Exports\PmbPendingExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\MidtransService;
+use App\Services\PaymentGatewayConfigService;
 use App\Services\PmbService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +32,7 @@ class PmbController extends Controller
     public function __construct(
         private readonly PmbService $pmbService,
         private readonly MidtransService $midtransService,
+        private readonly PaymentGatewayConfigService $gatewayConfigService,
     ) {
     }
 
@@ -194,13 +196,22 @@ class PmbController extends Controller
             'pmbItems' => $items,
             'registrationFee' => (int) config('siakad.pmb_registration_fee'),
             'summary' => $summary,
+            'midtrans' => [
+                'client_key' => $this->gatewayConfigService->midtrans()['client_key'],
+                'is_production' => (bool) $this->gatewayConfigService->midtrans()['is_production'],
+                'enabled' => $this->gatewayConfigService->activeProvider() === 'midtrans' && $this->gatewayConfigService->isMidtransReady(),
+            ],
         ]);
     }
 
     public function createSnap(Pmb $pmb): RedirectResponse
     {
         abort_unless($pmb->user_id === auth()->id(), 403);
-        if (! config('services.midtrans.server_key') || ! config('services.midtrans.client_key')) {
+        if ($this->gatewayConfigService->activeProvider() !== 'midtrans') {
+            return redirect()->route('pmb.payment')->with('error', 'Provider aktif bukan Midtrans. Ubah dulu di Settings > Payment Gateway.');
+        }
+
+        if (! $this->gatewayConfigService->isMidtransReady()) {
             return redirect()->route('pmb.payment')->with('error', 'Konfigurasi Midtrans belum lengkap.');
         }
 
