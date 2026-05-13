@@ -229,7 +229,16 @@ function TransactionRow({ trx, onCopy }) {
     );
 }
 
-export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], filters = null, tagihans = { data: [], meta: null, links: [] } }) {
+export default function Page({
+    auth,
+    mahasiswas = [],
+    jenisPembayarans = [],
+    prodis = [],
+    angkatans = [],
+    activeTarifs = [],
+    filters = null,
+    tagihans = { data: [], meta: null, links: [] },
+}) {
     const { menu, flash } = usePage().props;
     const [search, setSearch] = useState(filters?.search || '');
     const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
@@ -239,18 +248,16 @@ export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], fil
     const [toast, setToast] = useState(null);
     const [selectedTagihan, setSelectedTagihan] = useState(null);
     const [allocationDraft, setAllocationDraft] = useState({});
+    const [bulkModalOpen, setBulkModalOpen] = useState(false);
 
     const [confirmingDeletion, setConfirmingDeletion] = useState(false);
     const [itemToDelete, setItemToDelete] = useState(null);
 
     const form = useForm({
         mahasiswa_id: '',
-        jenis: 'SPP',
+        tarif_id: '',
         tahun_akademik: '2025/2026',
         semester_akademik: 1,
-        nominal: '',
-        potongan: 0,
-        denda: 0,
         jatuh_tempo: '',
         keterangan: '',
     });
@@ -264,6 +271,14 @@ export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], fil
         amount: '',
         notes: '',
         allocations: [],
+    });
+    const bulkForm = useForm({
+        prodi_id: '',
+        angkatan: '',
+        tahun_akademik: new Date().getFullYear() + '/' + (new Date().getFullYear() + 1),
+        semester_akademik: 1,
+        tarif_ids: [],
+        jatuh_tempo: '',
     });
 
     const selectedTransactions = useMemo(() => selectedTagihan?.transactions || [], [selectedTagihan]);
@@ -284,9 +299,37 @@ export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], fil
 
     const submit = (e) => {
         e.preventDefault();
+        const selectedTarif = (activeTarifs || []).find((tarif) => Number(tarif.id) === Number(form.data.tarif_id));
+        if (!selectedTarif) {
+            form.setError('tarif_id', 'Pilih tarif dari Setup Tarif terlebih dahulu.');
+            return;
+        }
+
+        form.clearErrors('tarif_id');
+        const payload = {
+            mahasiswa_id: form.data.mahasiswa_id,
+            tahun_akademik: form.data.tahun_akademik || selectedTarif.tahun_akademik,
+            semester_akademik: Number(form.data.semester_akademik || selectedTarif.semester_akademik || 1),
+            jatuh_tempo: form.data.jatuh_tempo || null,
+            keterangan: form.data.keterangan || null,
+            items: [
+                {
+                    jenis_tagihan_id: selectedTarif.jenis_tagihan_id,
+                    kode: selectedTarif.kode,
+                    nama: selectedTarif.nama,
+                    nominal: Number(selectedTarif.nominal || 0),
+                    potongan: 0,
+                    denda: 0,
+                    sort_order: 0,
+                },
+            ],
+        };
+
+        form.transform(() => payload);
         form.post(route('keuangan.tagihan.store'), {
             preserveScroll: true,
-            onSuccess: () => form.reset('nominal', 'potongan', 'denda', 'keterangan'),
+            onSuccess: () => form.reset('tarif_id', 'jatuh_tempo', 'keterangan'),
+            onFinish: () => form.transform((data) => data),
         });
     };
 
@@ -312,6 +355,17 @@ export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], fil
                 paymentForm.reset('reference', 'paid_at', 'notes', 'amount', 'allocations');
                 paymentForm.setData('jenis_pembayaran_id', '');
                 paymentForm.setData('provider', 'manual');
+            },
+        });
+    };
+
+    const submitBulk = (e) => {
+        e.preventDefault();
+        bulkForm.post(route('keuangan.tagihan.bulk'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setBulkModalOpen(false);
+                bulkForm.reset('prodi_id', 'angkatan', 'tarif_ids', 'jatuh_tempo');
             },
         });
     };
@@ -441,26 +495,47 @@ export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], fil
                     {flash?.error && <p className="mt-2 rounded-lg bg-rose-100 px-3 py-2 text-xs font-semibold text-rose-700">{flash.error}</p>}
                     {flash?.success && <p className="mt-2 rounded-lg bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-700">{flash.success}</p>}
                     <form onSubmit={submit} className="mt-3 space-y-2">
-                        <select className="form-input" value={form.data.mahasiswa_id} onChange={(e) => form.setData('mahasiswa_id', e.target.value)}>
-                            <option value="">Pilih mahasiswa</option>
-                            {mahasiswas.map((m) => (
-                                <option key={m.id} value={m.id}>
-                                    {m.nim} - {m.nama}
-                                </option>
-                            ))}
-                        </select>
-                        <input className="form-input" value={form.data.jenis} onChange={(e) => form.setData('jenis', e.target.value)} placeholder="Jenis tagihan" />
-                        <div className="grid grid-cols-2 gap-2">
-                            <input className="form-input" value={form.data.tahun_akademik} onChange={(e) => form.setData('tahun_akademik', e.target.value)} placeholder="Tahun akademik" />
-                            <input type="number" min="1" max="14" className="form-input" value={form.data.semester_akademik} onChange={(e) => form.setData('semester_akademik', e.target.value)} placeholder="Semester" />
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700">Mahasiswa</label>
+                            <select className="form-input mt-1" value={form.data.mahasiswa_id} onChange={(e) => form.setData('mahasiswa_id', e.target.value)}>
+                                <option value="">Pilih mahasiswa</option>
+                                {mahasiswas.map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                        {m.nim} - {m.nama}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                        <input type="number" min="0" className="form-input" value={form.data.nominal} onChange={(e) => form.setData('nominal', e.target.value)} placeholder="Nominal" />
-                        <div className="grid grid-cols-2 gap-2">
-                            <input type="number" min="0" className="form-input" value={form.data.potongan} onChange={(e) => form.setData('potongan', e.target.value)} placeholder="Potongan" />
-                            <input type="number" min="0" className="form-input" value={form.data.denda} onChange={(e) => form.setData('denda', e.target.value)} placeholder="Denda" />
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700">Tarif (Dari Setup Tarif)</label>
+                            <select className="form-input mt-1" value={form.data.tarif_id} onChange={(e) => form.setData('tarif_id', e.target.value)}>
+                                <option value="">Pilih tarif aktif</option>
+                                {activeTarifs.map((tarif) => (
+                                    <option key={tarif.id} value={tarif.id}>
+                                        {tarif.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <FieldError message={form.errors.tarif_id} />
                         </div>
-                        <input type="date" className="form-input" value={form.data.jatuh_tempo} onChange={(e) => form.setData('jatuh_tempo', e.target.value)} />
-                        <textarea rows="2" className="form-input" value={form.data.keterangan} onChange={(e) => form.setData('keterangan', e.target.value)} placeholder="Keterangan" />
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700">Tahun Akademik</label>
+                                <input className="form-input mt-1" value={form.data.tahun_akademik} onChange={(e) => form.setData('tahun_akademik', e.target.value)} placeholder="Contoh: 2025/2026" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700">Semester</label>
+                                <input type="number" min="1" max="14" className="form-input mt-1" value={form.data.semester_akademik} onChange={(e) => form.setData('semester_akademik', e.target.value)} placeholder="1-14" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700">Jatuh Tempo</label>
+                            <input type="date" className="form-input mt-1" value={form.data.jatuh_tempo} onChange={(e) => form.setData('jatuh_tempo', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700">Keterangan</label>
+                            <textarea rows="2" className="form-input mt-1" value={form.data.keterangan} onChange={(e) => form.setData('keterangan', e.target.value)} placeholder="Catatan tambahan (opsional)" />
+                        </div>
                         <button type="submit" disabled={form.processing} className="btn-primary w-full">
                             Simpan Tagihan
                         </button>
@@ -471,6 +546,9 @@ export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], fil
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <h3 className="text-sm font-bold text-slate-900">Daftar Tagihan</h3>
                         <div className="flex items-center gap-2">
+                            <button type="button" className="btn-primary" onClick={() => setBulkModalOpen(true)}>
+                                Tagihan Kolektif
+                            </button>
                             <a href={route('keuangan.tagihan.pdf', { search, status: statusFilter, sort_by: sortBy, sort_dir: sortDir })} className="btn-outline">
                                 Export PDF
                             </a>

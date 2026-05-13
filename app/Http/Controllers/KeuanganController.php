@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Mahasiswa;
 use App\Models\JenisTagihan;
 use App\Models\JenisPembayaran;
+use App\Models\Prodi;
 use App\Models\Tagihan;
 use App\Models\TagihanItem;
+use App\Models\TarifKeuangan;
+use App\Models\TahunAkademik;
 use App\Models\Transaksi;
 use App\Models\FinanceReconciliation;
 use App\Notifications\TagihanIssued;
@@ -207,6 +210,32 @@ class KeuanganController extends Controller
         };
 
         $tagihanPage = $query->paginate($perPage)->withQueryString();
+        $activeTahun = TahunAkademik::query()
+            ->where('is_active', true)
+            ->latest('id')
+            ->first();
+
+        $defaultTahunAkademik = $activeTahun?->kode
+            ?? (now()->year.'/'.(now()->year + 1));
+        $defaultSemesterAkademik = (int) ($activeTahun?->semester_aktif ?? 1);
+
+        $activeTarifs = TarifKeuangan::query()
+            ->with('jenisTagihan:id,kode,nama')
+            ->where('is_active', true)
+            ->where('tahun_akademik', $defaultTahunAkademik)
+            ->where('semester_akademik', $defaultSemesterAkademik)
+            ->orderBy('jenis_tagihan_id')
+            ->get()
+            ->map(fn (TarifKeuangan $tarif) => [
+                'id' => (int) $tarif->id,
+                'jenis_tagihan_id' => (int) $tarif->jenis_tagihan_id,
+                'kode' => $tarif->jenisTagihan?->kode ?? ('TRF-'.$tarif->id),
+                'nama' => $tarif->jenisTagihan?->nama ?? ('Tarif #'.$tarif->id),
+                'nominal' => (float) $tarif->nominal,
+                'tahun_akademik' => $tarif->tahun_akademik,
+                'semester_akademik' => (int) $tarif->semester_akademik,
+                'label' => ($tarif->jenisTagihan?->nama ?? ('Tarif #'.$tarif->id)).' - Rp '.number_format((float) $tarif->nominal, 0, ',', '.'),
+            ])->values();
 
         return Inertia::render('Modules/Keuangan/Tagihan', [
             'mahasiswas' => Mahasiswa::query()
@@ -219,6 +248,17 @@ class KeuanganController extends Controller
                 ->orderBy('sort_order')
                 ->orderBy('nama')
                 ->get(['id', 'kode', 'nama', 'provider', 'payment_type']),
+            'prodis' => Prodi::query()
+                ->orderBy('nama')
+                ->get(['id', 'nama']),
+            'angkatans' => Mahasiswa::query()
+                ->whereNotNull('angkatan')
+                ->where('angkatan', '!=', '')
+                ->distinct()
+                ->orderByDesc('angkatan')
+                ->pluck('angkatan')
+                ->values(),
+            'activeTarifs' => $activeTarifs,
             'filters' => [
                 'search' => $search,
                 'status' => $status,
