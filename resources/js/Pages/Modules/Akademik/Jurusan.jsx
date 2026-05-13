@@ -147,7 +147,7 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = { dat
     };
 
     return (
-        <PageShell auth={auth} title="Jurusan" tabs={tabs} showFlash={false}>
+        <PageShell auth={auth} title="Jurusan" tabs={tabs} showFlash={false} heroVariant="corner" layoutHeader={false}>
             <ConfirmationModal
                 show={confirmingDeletion}
                 onClose={() => setConfirmingDeletion(false)}
@@ -165,14 +165,17 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = { dat
                         </div>
 
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Kode Jurusan</label>
                             <input className="form-input" placeholder="Kode" value={form.data.kode} onChange={(e) => form.setData('kode', e.target.value)} />
                             <FieldError message={form.errors.kode} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Nama Jurusan</label>
                             <input className="form-input" placeholder="Nama" value={form.data.nama} onChange={(e) => form.setData('nama', e.target.value)} />
                             <FieldError message={form.errors.nama} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Deskripsi</label>
                             <textarea className="form-input min-h-28" placeholder="Deskripsi" value={form.data.deskripsi} onChange={(e) => form.setData('deskripsi', e.target.value)} />
                             <FieldError message={form.errors.deskripsi} />
                         </div>

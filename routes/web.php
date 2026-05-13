@@ -113,6 +113,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/keuangan/tagihan', [KeuanganController::class, 'tagihan'])->name('keuangan.tagihan');
         Route::get('/keuangan/tagihan/export/pdf', [KeuanganController::class, 'tagihanPdf'])->name('keuangan.tagihan.pdf');
         Route::post('/keuangan/tagihan', [KeuanganController::class, 'storeTagihan'])->middleware('action:action.create')->name('keuangan.tagihan.store');
+        Route::post('/keuangan/tagihan/bulk', [KeuanganController::class, 'storeBulkTagihan'])->middleware('action:action.create')->name('keuangan.tagihan.bulk');
         Route::patch('/keuangan/tagihan/{tagihan}/status', [KeuanganController::class, 'updateTagihanStatus'])->middleware('action:action.update')->name('keuangan.tagihan.status');
         Route::delete('/keuangan/tagihan/{tagihan}', [KeuanganController::class, 'destroyTagihan'])->middleware('action:action.delete')->name('keuangan.tagihan.destroy');
         Route::post('/keuangan/tagihan/{tagihan}/pembayaran', [PembayaranController::class, 'store'])->middleware('action:action.create')->name('keuangan.tagihan.pembayaran.store');

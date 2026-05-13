@@ -26,7 +26,6 @@ export default function Page({ auth, tahunAktif = null, dosen = null, summary = 
         <AuthenticatedLayout
             user={auth.user}
             menu={menu}
-            header={<h2 className="text-xl font-bold text-slate-900">Jadwal Mengajar</h2>}
         >
             <Head title="Jadwal Mengajar" />
 

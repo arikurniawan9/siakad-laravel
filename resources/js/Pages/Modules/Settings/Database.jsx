@@ -7,6 +7,20 @@ function formatKb(bytes) {
     return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
+function formatBackupDateTime(backup) {
+    const ts = Number(backup?.last_modified_ts || 0);
+    if (!Number.isFinite(ts) || ts <= 0) return backup?.last_modified_at || '-';
+
+    return new Intl.DateTimeFormat('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    }).format(new Date(ts * 1000));
+}
+
 export default function DatabaseMaintenancePage({ auth, backups = [], maintenanceLogs = [], logFilters = {}, availableTables = [] }) {
     const { menu, flash, errors } = usePage().props;
     const backupForm = useForm({ mode: 'full', label: '', tables: [] });
@@ -148,13 +162,13 @@ export default function DatabaseMaintenancePage({ auth, backups = [], maintenanc
     };
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-bold text-slate-900">Maintenance Database</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Maintenance Database" />
 
             <div className="space-y-5">
-                <section className="overflow-hidden rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_46%),linear-gradient(140deg,_#ffffff,_#f8fafc)] p-5 shadow-sm sm:p-6">
-                    <h3 className="text-2xl font-black tracking-tight text-slate-900">Maintenance Database</h3>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Backup, restore, reset, dan log maintenance.</p>
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_46%),linear-gradient(140deg,_#ffffff,_#f8fafc)] p-4 shadow-sm sm:p-5">
+                    <h3 className="text-xl font-black tracking-tight text-slate-900">Maintenance Database</h3>
+                    <p className="mt-1.5 max-w-3xl text-xs leading-5 text-slate-600">Backup, restore, reset, dan log maintenance.</p>
 
                     {flash?.success && <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">{flash.success}</div>}
                     {currentError && <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">{currentError}</div>}
@@ -376,7 +390,7 @@ export default function DatabaseMaintenancePage({ auth, backups = [], maintenanc
                                 <div key={backup.filename} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3">
                                     <div className="min-w-0">
                                         <p className="truncate text-xs font-semibold text-slate-800">{backup.filename}</p>
-                                        <p className="text-[11px] text-slate-500">{backup.last_modified_at} | {formatKb(backup.size)}</p>
+                                        <p className="text-[11px] text-slate-500">{formatBackupDateTime(backup)} | {formatKb(backup.size)}</p>
                                     </div>
                                     <div className="ml-2 flex items-center gap-2">
                                         <a className="rounded-lg bg-sky-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-sky-500" href={route('settings.database.download', backup.filename)}>Download</a>

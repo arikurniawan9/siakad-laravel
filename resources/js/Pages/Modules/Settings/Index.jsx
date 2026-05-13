@@ -52,7 +52,7 @@ export default function Page({ auth, stats = null, recentUsers = [], backups = [
     };
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-bold text-slate-900">Pengaturan Sistem</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Pengaturan Sistem" />
 
             <ConfirmationModal
@@ -77,32 +77,32 @@ export default function Page({ auth, stats = null, recentUsers = [], backups = [
             <div className="space-y-5">
                 <section className="panel overflow-hidden p-0">
                     <div className="grid gap-0 lg:grid-cols-[1.3fr_1fr]">
-                        <div className="bg-[radial-gradient(circle_at_top_left,_rgba(236,72,153,0.16),_transparent_52%),linear-gradient(135deg,_#fff7fb,_#f8fafc)] px-5 py-5 sm:px-6">
+                        <div className="bg-[radial-gradient(circle_at_top_left,_rgba(236,72,153,0.16),_transparent_52%),linear-gradient(135deg,_#fff7fb,_#f8fafc)] px-4 py-4 sm:px-5">
                             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">System Health</p>
-                            <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Konfigurasi Operasional</h3>
-                            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                            <h3 className="mt-1.5 text-xl font-black tracking-tight text-slate-900">Konfigurasi Operasional</h3>
+                            <p className="mt-2 max-w-2xl text-xs leading-5 text-slate-600">
                                 Ringkasan teknis ini membantu admin memantau lingkungan aplikasi, tahun akademik aktif, dan akun terbaru yang masuk ke sistem.
                             </p>
-                            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                                <article className="rounded-2xl border border-pink-100 bg-white/80 px-4 py-4 shadow-sm shadow-pink-100/40">
+                            <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
+                                <article className="rounded-xl border border-pink-100 bg-white/80 px-3 py-3 shadow-sm shadow-pink-100/40">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Aplikasi</p>
-                                    <p className="mt-2 text-base font-black text-slate-900">{stats?.app_name || '-'}</p>
+                                    <p className="mt-1.5 text-sm font-black text-slate-900">{stats?.app_name || '-'}</p>
                                 </article>
-                                <article className="rounded-2xl border border-pink-100 bg-white/80 px-4 py-4 shadow-sm shadow-pink-100/40">
+                                <article className="rounded-xl border border-pink-100 bg-white/80 px-3 py-3 shadow-sm shadow-pink-100/40">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Environment</p>
-                                    <p className="mt-2 text-base font-black text-slate-900">{stats?.app_env || '-'}</p>
+                                    <p className="mt-1.5 text-sm font-black text-slate-900">{stats?.app_env || '-'}</p>
                                 </article>
-                                <article className="rounded-2xl border border-pink-100 bg-white/80 px-4 py-4 shadow-sm shadow-pink-100/40">
+                                <article className="rounded-xl border border-pink-100 bg-white/80 px-3 py-3 shadow-sm shadow-pink-100/40">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">PHP</p>
-                                    <p className="mt-2 text-base font-black text-slate-900">{stats?.php_version || '-'}</p>
+                                    <p className="mt-1.5 text-sm font-black text-slate-900">{stats?.php_version || '-'}</p>
                                 </article>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 border-t border-slate-200 bg-white px-5 py-5 sm:px-6 lg:border-l lg:border-t-0">
+                        <div className="grid grid-cols-2 gap-2.5 border-t border-slate-200 bg-white px-4 py-4 sm:px-5 lg:border-l lg:border-t-0">
                             {cards.map((item) => (
-                                <article key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                <article key={item.label} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
-                                    <p className={`mt-2 text-2xl font-black ${item.tone}`}>{item.value}</p>
+                                    <p className={`mt-1.5 text-xl font-black ${item.tone}`}>{item.value}</p>
                                 </article>
                             ))}
                         </div>

@@ -77,7 +77,7 @@ export default function Page({ auth, locks = [], filters = null, tahunAkademiks 
     };
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-bold text-slate-900">Penguncian Periode Keuangan</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Penguncian Periode Keuangan" />
 
             <ConfirmationModal

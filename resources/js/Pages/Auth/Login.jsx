@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Checkbox from '@/Components/Checkbox';
 import GuestLayout from '@/Layouts/GuestLayout';
 import InputError from '@/Components/InputError';
@@ -74,20 +74,20 @@ export default function Login({ status, canResetPassword, captchaQuestion }) {
         <GuestLayout>
             <Head title="Log in" />
 
-            <div className={`guest-xs-tight mx-auto w-full max-w-md rounded-3xl border border-slate-200/20 bg-slate-900/65 p-5 shadow-2xl shadow-slate-950/50 backdrop-blur-xl motion-safe:animate-[guestFadeIn_420ms_ease-out] sm:p-7 ${shake ? 'motion-safe:animate-[guestShake_420ms_ease-in-out]' : ''}`}>
+            <div className={`guest-xs-tight mx-auto w-full max-w-md rounded-3xl border border-slate-200/80 bg-white/85 p-5 shadow-2xl shadow-slate-400/30 backdrop-blur-xl dark:border-slate-200/20 dark:bg-slate-900/65 dark:shadow-slate-950/50 motion-safe:animate-[guestFadeIn_420ms_ease-out] sm:p-7 ${shake ? 'motion-safe:animate-[guestShake_420ms_ease-in-out]' : ''}`}>
                 <div className="mb-5 flex items-center justify-between">
                     <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-300/90">Sign In</p>
-                        <h2 className="mt-1 text-2xl font-black text-white">Portal Login</h2>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-600 dark:text-sky-300/90">Sign In</p>
+                        <h2 className="mt-1 text-2xl font-black text-slate-900 dark:text-white">Portal Login</h2>
                     </div>
-                    <img src="/logostai.png" alt="Logo STAI" className="h-10 w-10 rounded-xl border border-slate-200/20 bg-slate-800/60 p-1.5 object-contain" />
+                    <img src="/logostai.png" alt="Logo STAI" className="h-10 w-10 rounded-xl border border-slate-200/80 bg-white/80 p-1.5 object-contain dark:border-slate-200/20 dark:bg-slate-800/60" />
                 </div>
 
-                {status && <div className="mb-4 rounded-xl border border-emerald-300/35 bg-emerald-400/10 px-3 py-2 text-xs font-semibold text-emerald-200">{status}</div>}
+                {status && <div className="mb-4 rounded-xl border border-emerald-300/60 bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-700 dark:border-emerald-300/35 dark:bg-emerald-400/10 dark:text-emerald-200">{status}</div>}
 
                 <form onSubmit={submit} className="space-y-4">
                     <div>
-                        <InputLabel htmlFor="email" value="Email" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300" />
+                        <InputLabel htmlFor="email" value="Email" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300" />
 
                         <TextInput
                             ref={emailRef}
@@ -95,7 +95,7 @@ export default function Login({ status, canResetPassword, captchaQuestion }) {
                             type="email"
                             name="email"
                             value={data.email}
-                            className="mt-2 block w-full rounded-xl border border-slate-300/20 bg-slate-950/45 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:ring-sky-400"
+                            className="mt-2 block w-full rounded-xl border border-slate-300 bg-white dark:border-slate-300/20 dark:bg-slate-950/45 px-3 py-2 text-slate-800 placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-sky-400 focus:ring-sky-400"
                             placeholder="nama@kampus.ac.id"
                             autoComplete="username"
                             isFocused={true}
@@ -106,7 +106,7 @@ export default function Login({ status, canResetPassword, captchaQuestion }) {
                     </div>
 
                     <div>
-                        <InputLabel htmlFor="password" value="Password" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300" />
+                        <InputLabel htmlFor="password" value="Password" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300" />
 
                         <div className="relative">
                             <TextInput
@@ -115,7 +115,7 @@ export default function Login({ status, canResetPassword, captchaQuestion }) {
                                 type={showPassword ? 'text' : 'password'}
                                 name="password"
                                 value={data.password}
-                                className="mt-2 block w-full rounded-xl border border-slate-300/20 bg-slate-950/45 px-3 py-2 pr-24 text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:ring-sky-400"
+                                className="mt-2 block w-full rounded-xl border border-slate-300 bg-white dark:border-slate-300/20 dark:bg-slate-950/45 px-3 py-2 pr-24 text-slate-800 placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-sky-400 focus:ring-sky-400"
                                 placeholder="Masukkan password"
                                 autoComplete="current-password"
                                 onKeyUp={(e) => setCapsLockOn(e.getModifierState && e.getModifierState('CapsLock'))}
@@ -123,7 +123,7 @@ export default function Login({ status, canResetPassword, captchaQuestion }) {
                             />
                             <button
                                 type="button"
-                                className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg border border-slate-300/20 bg-slate-800/70 text-slate-200 hover:bg-slate-700/80"
+                                className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-300/20 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:bg-slate-700/80"
                                 onClick={() => setShowPassword((v) => !v)}
                                 aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                                 title={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
@@ -141,18 +141,18 @@ export default function Login({ status, canResetPassword, captchaQuestion }) {
                                 )}
                             </button>
                         </div>
-                        {capsLockOn && <p className="mt-2 text-[11px] font-semibold text-amber-300">Caps Lock aktif</p>}
+                        {capsLockOn && <p className="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-300">Caps Lock aktif</p>}
 
                         <InputError message={errors.password} className="mt-2" />
                     </div>
 
                     <div>
-                        <InputLabel htmlFor="captcha" value="Captcha Keamanan" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300" />
-                        <div className="mt-2 flex items-center justify-between rounded-xl border border-cyan-300/25 bg-cyan-400/10 px-3 py-2">
-                            <p className="text-sm font-bold tracking-[0.18em] text-cyan-100">{captchaQuestion ?? '------'}</p>
+                        <InputLabel htmlFor="captcha" value="Captcha Keamanan" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300" />
+                        <div className="mt-2 flex items-center justify-between rounded-xl border border-cyan-300/60 bg-cyan-100/80 dark:border-cyan-300/25 dark:bg-cyan-400/10 px-3 py-2">
+                            <p className="text-sm font-bold tracking-[0.18em] text-cyan-700 dark:text-cyan-100">{captchaQuestion ?? '------'}</p>
                             <button
                                 type="button"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200/25 bg-slate-800/70 text-slate-200 hover:bg-slate-700/80 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-200/25 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:bg-slate-700/80 disabled:cursor-not-allowed disabled:opacity-60"
                                 onClick={() => router.get(route('login'), { refresh_captcha: 1 }, { preserveScroll: true, replace: true })}
                                 disabled={captchaLockSeconds > 0}
                                 aria-label="Acak ulang captcha"
@@ -169,7 +169,7 @@ export default function Login({ status, canResetPassword, captchaQuestion }) {
                             type="text"
                             name="login_captcha_input"
                             value={data.captcha}
-                            className="mt-2 block w-full rounded-xl border border-slate-300/20 bg-slate-950/45 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:ring-sky-400"
+                            className="mt-2 block w-full rounded-xl border border-slate-300 bg-white dark:border-slate-300/20 dark:bg-slate-950/45 px-3 py-2 text-slate-800 placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-sky-400 focus:ring-sky-400"
                             placeholder="Masukkan 6 karakter captcha"
                             maxLength={6}
                             autoComplete="new-password"
@@ -180,7 +180,7 @@ export default function Login({ status, canResetPassword, captchaQuestion }) {
                         />
                         <InputError message={errors.captcha} className="mt-2" />
                         {captchaLockSeconds > 0 && (
-                            <p className="mt-1 text-[11px] font-semibold text-amber-300">
+                            <p className="mt-1 text-[11px] font-semibold text-amber-600 dark:text-amber-300">
                                 Coba lagi dalam {captchaLockSeconds} detik
                             </p>
                         )}
@@ -193,11 +193,11 @@ export default function Login({ status, canResetPassword, captchaQuestion }) {
                                 checked={data.remember}
                                 onChange={(e) => setData('remember', e.target.checked)}
                             />
-                            <span className="ms-2 text-xs font-semibold text-slate-300">Ingat saya</span>
+                            <span className="ms-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Ingat saya</span>
                         </label>
 
                         {canResetPassword && (
-                            <Link href={route('password.request')} className="text-xs font-semibold text-sky-300 hover:text-sky-200">
+                            <Link href={route('password.request')} className="text-xs font-semibold text-sky-700 hover:text-sky-600 dark:text-sky-300 dark:hover:text-sky-200">
                                 Lupa password?
                             </Link>
                         )}
@@ -208,7 +208,7 @@ export default function Login({ status, canResetPassword, captchaQuestion }) {
                         {processing ? 'Memproses...' : captchaLockSeconds > 0 ? `Tunggu ${captchaLockSeconds} detik` : 'Masuk ke Workspace'}
                     </PrimaryButton>
 
-                    <p className="pt-1 text-center text-[11px] text-slate-400">
+                    <p className="pt-1 text-center text-[11px] text-slate-500 dark:text-slate-400">
                         Dilindungi oleh gateway autentikasi SIAKAD
                     </p>
                 </form>

@@ -162,7 +162,6 @@ export default function Page({ auth, mahasiswa = null, ringkasan = null, filters
         <AuthenticatedLayout
             user={auth.user}
             menu={menu}
-            header={<h2 className="text-xl font-bold text-slate-900">Tagihan Mahasiswa</h2>}
         >
             <Head title="Tagihan Mahasiswa" />
 

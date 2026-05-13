@@ -836,6 +836,76 @@ export default function Page({ auth, mahasiswas = [], jenisPembayarans = [], fil
                     </div>
                 )}
             </Modal>
+            <Modal show={bulkModalOpen} onClose={() => setBulkModalOpen(false)} maxWidth="lg">
+                <div className="px-6 py-4">
+                    <h3 className="text-lg font-bold text-slate-900">Buat Tagihan Kolektif</h3>
+                    <p className="mt-1 text-xs text-slate-500 text-pretty">Pilih kriteria mahasiswa dan jenis tagihan. Sistem akan otomatis membuat tagihan untuk seluruh mahasiswa aktif yang sesuai.</p>
+                    
+                    <form onSubmit={submitBulk} className="mt-5 space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700">Filter Prodi</label>
+                            <select className="form-input mt-1" value={bulkForm.data.prodi_id} onChange={(e) => bulkForm.setData('prodi_id', e.target.value)}>
+                                <option value="">Semua Program Studi</option>
+                                {prodis.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700">Filter Angkatan</label>
+                            <select className="form-input mt-1" value={bulkForm.data.angkatan} onChange={(e) => bulkForm.setData('angkatan', e.target.value)}>
+                                <option value="">Semua Angkatan</option>
+                                {angkatans.map(a => <option key={a} value={a}>{a}</option>)}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700">Tahun Akademik</label>
+                                <input className="form-input mt-1" value={bulkForm.data.tahun_akademik} onChange={(e) => bulkForm.setData('tahun_akademik', e.target.value)} />
+                                <FieldError message={bulkForm.errors.tahun_akademik} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700">Semester</label>
+                                <input type="number" className="form-input mt-1" value={bulkForm.data.semester_akademik} onChange={(e) => bulkForm.setData('semester_akademik', e.target.value)} />
+                                <FieldError message={bulkForm.errors.semester_akademik} />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700">Pilih Tarif (Bisa pilih lebih dari satu)</label>
+                            <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                {activeTarifs.map((t) => (
+                                    <label key={t.id} className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-slate-300 text-emerald-600"
+                                            value={t.id}
+                                            checked={bulkForm.data.tarif_ids.includes(t.id)}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                const ids = [...bulkForm.data.tarif_ids];
+                                                if (checked) ids.push(t.id);
+                                                else ids.splice(ids.indexOf(t.id), 1);
+                                                bulkForm.setData('tarif_ids', ids);
+                                            }}
+                                        />
+                                        <span className="text-xs font-semibold text-slate-600">{t.nama}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <FieldError message={bulkForm.errors.tarif_ids} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700">Jatuh Tempo</label>
+                            <input type="date" className="form-input mt-1" value={bulkForm.data.jatuh_tempo} onChange={(e) => bulkForm.setData('jatuh_tempo', e.target.value)} />
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                            <SecondaryButton onClick={() => setBulkModalOpen(false)}>Batal</SecondaryButton>
+                            <button type="submit" disabled={bulkForm.processing} className="btn-primary">
+                                {bulkForm.processing ? 'Memproses...' : 'Generate Tagihan'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </Modal>
         </AuthenticatedLayout>
     );
 }

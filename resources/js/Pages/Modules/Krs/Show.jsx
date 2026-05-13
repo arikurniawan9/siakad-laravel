@@ -1,4 +1,4 @@
-﻿import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ModuleHero from '@/Components/ModuleHero';
 import { Head, usePage } from '@inertiajs/react';
 import EmptyState from '../Akademik/EmptyState';
@@ -65,7 +65,7 @@ export default function Page({ auth, krs, verifyUrl, docHash, qrSvg, academicSum
     const printPage = () => window.print();
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Detail KRS Mahasiswa</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Detail KRS" />
 
             <ModuleHero
@@ -79,7 +79,7 @@ export default function Page({ auth, krs, verifyUrl, docHash, qrSvg, academicSum
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <p className="text-sm font-bold text-slate-900">Kartu Rencana Studi</p>
-                        <p className="text-xs text-slate-600">{krs.tahun_akademik} • Semester {krs.semester_akademik}</p>
+                        <p className="text-xs text-slate-600">{krs.tahun_akademik} � Semester {krs.semester_akademik}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <a href={route('krs.pdf', krs.id)} className="btn-outline print:hidden">Download PDF</a>

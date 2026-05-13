@@ -13,5 +13,7 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         'payments/midtrans/callback',
+        'payments/xendit/callback',
+        'payments/duitku/callback',
     ];
 }

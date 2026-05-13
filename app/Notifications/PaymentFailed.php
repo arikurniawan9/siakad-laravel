@@ -3,9 +3,11 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
 
-class PaymentFailed extends Notification
+class PaymentFailed extends Notification implements ShouldBroadcast
 {
     use Queueable;
 
@@ -23,7 +25,17 @@ class PaymentFailed extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'broadcast'];
+    }
+
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        return new BroadcastMessage([
+            'id' => $this->id,
+            'data' => $this->toArray($notifiable),
+            'read_at' => null,
+            'created_at' => now()->toDateTimeString(),
+        ]);
     }
 
     public function toArray(object $notifiable): array

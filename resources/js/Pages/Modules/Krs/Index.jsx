@@ -164,7 +164,7 @@ export default function Page({ auth, tahunAktif = null, kelasAktif = [], mahasis
     }, [search]);
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">KRS - Perencanaan Studi</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="KRS - Perencanaan Studi" />
 
             <ModuleHero

@@ -15,6 +15,14 @@
         min-height: 100vh;
         font-size: 14px;
     }
+
+    .dark body {
+        color: #e2e8f0;
+        background:
+            radial-gradient(circle at 10% 10%, rgba(59, 130, 246, 0.14), transparent 30%),
+            radial-gradient(circle at 90% 0%, rgba(14, 165, 233, 0.1), transparent 30%),
+            linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    }
 }
 
 @layer components {
@@ -23,15 +31,28 @@
     }
 
     .classic-sidebar {
-        @apply text-slate-100 relative flex h-screen flex-col overflow-hidden;
+        @apply relative flex h-screen flex-col overflow-hidden text-slate-700;
+        background: linear-gradient(180deg, #f8fbff 0%, #eef3fb 45%, #e6edf8 100%);
+        border-right: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .dark .classic-sidebar {
+        @apply text-slate-100;
         background: linear-gradient(180deg, #1a2134 0%, #1a2031 45%, #192030 100%);
+        border-right-color: rgba(148, 163, 184, 0.2);
     }
 
     .mobile-sidebar-panel {
+        color: #334155;
+        background: linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, rgba(226, 232, 240, 0.92) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.42);
+        backdrop-filter: blur(10px);
+    }
+
+    .dark .mobile-sidebar-panel {
         color: #e2e8f0;
         background: linear-gradient(180deg, rgba(26, 33, 52, 0.86) 0%, rgba(25, 32, 48, 0.82) 100%);
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        backdrop-filter: blur(10px);
+        border-color: rgba(148, 163, 184, 0.22);
     }
 
     .floating-menu-panel {
@@ -40,11 +61,17 @@
         width: 200px;
         border-radius: 14px;
         padding: 12px;
-        background: linear-gradient(180deg, rgba(18, 26, 43, 0.96) 0%, rgba(17, 24, 39, 0.96) 100%);
-        border: 1px solid rgba(148, 163, 184, 0.25);
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.45);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(241, 245, 249, 0.96) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
         backdrop-filter: blur(8px);
         animation: floatingFade 180ms ease-out;
+    }
+
+    .dark .floating-menu-panel {
+        background: linear-gradient(180deg, rgba(18, 26, 43, 0.96) 0%, rgba(17, 24, 39, 0.96) 100%);
+        border-color: rgba(148, 163, 184, 0.25);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.45);
     }
 
     @keyframes floatingFade {
@@ -63,11 +90,19 @@
         position: absolute;
         inset: 0;
         pointer-events: none;
+        background: radial-gradient(circle at 0% 25%, rgba(56, 189, 248, 0.12), transparent 38%);
+    }
+
+    .dark .classic-sidebar::before {
         background: radial-gradient(circle at 0% 25%, rgba(76, 120, 255, 0.14), transparent 38%);
     }
 
     .sidebar-brand {
-        @apply text-[18px] font-extrabold tracking-[0.2em] text-sky-300;
+        @apply text-[18px] font-extrabold tracking-[0.2em] text-sky-700;
+    }
+
+    .dark .sidebar-brand {
+        @apply text-sky-300;
     }
 
     .sidebar-subbrand {
@@ -75,7 +110,11 @@
     }
 
     .sidebar-caption {
-        @apply rounded-xl px-2 py-2 text-[13px] leading-relaxed text-slate-300;
+        @apply rounded-xl px-2 py-2 text-[13px] leading-relaxed text-slate-600;
+    }
+
+    .dark .sidebar-caption {
+        @apply text-slate-300;
     }
 
     .sidebar-scroll {
@@ -93,7 +132,11 @@
     }
 
     .sidebar-logout-button {
-        @apply flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-300/20 bg-rose-500/15 px-3 py-3 text-xs font-extrabold uppercase tracking-[0.14em] text-rose-100 transition hover:bg-rose-500/25;
+        @apply flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-300/60 bg-rose-100 px-3 py-3 text-xs font-extrabold uppercase tracking-[0.14em] text-rose-700 transition hover:bg-rose-200;
+    }
+
+    .dark .sidebar-logout-button {
+        @apply border-rose-300/20 bg-rose-500/15 text-rose-100 hover:bg-rose-500/25;
     }
 
     .classic-topbar {
@@ -103,10 +146,20 @@
         border-bottom: 1px solid #c7d2e2;
     }
 
+    .dark .classic-topbar {
+        background: rgba(15, 23, 42, 0.92);
+        border-bottom-color: rgba(71, 85, 105, 0.55);
+    }
+
     .classic-card {
         background: #eceff3;
         border: 1px solid #c8d1dd;
         border-radius: 14px;
+    }
+
+    .dark .classic-card {
+        background: #1e293b;
+        border-color: #334155;
     }
 
     .menu-icon {
@@ -115,18 +168,33 @@
 
     .classic-menu-item {
         @apply flex items-center justify-between rounded-2xl px-4 py-3 text-[13px] font-semibold transition;
+        color: #334155;
+        background: rgba(148, 163, 184, 0.14);
+    }
+
+    .classic-menu-item:hover {
+        background: rgba(148, 163, 184, 0.25);
+    }
+
+    .dark .classic-menu-item {
         color: #e2e8f0;
         background: rgba(148, 163, 184, 0.06);
     }
 
-    .classic-menu-item:hover {
+    .dark .classic-menu-item:hover {
         background: rgba(148, 163, 184, 0.14);
     }
 
     .classic-menu-item.active {
+        background: linear-gradient(145deg, rgba(147, 197, 253, 0.48), rgba(125, 211, 252, 0.42));
+        color: #0f172a;
+        border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+
+    .dark .classic-menu-item.active {
         background: linear-gradient(145deg, rgba(148, 163, 184, 0.28), rgba(100, 116, 139, 0.3));
         color: #ffffff;
-        border: 1px solid rgba(148, 163, 184, 0.4);
+        border-color: rgba(148, 163, 184, 0.4);
     }
 
     .classic-badge {
@@ -143,12 +211,28 @@
         @apply bg-slate-50;
     }
 
+    .dark .top-btn {
+        @apply border-slate-600 bg-slate-800 text-slate-200;
+    }
+
+    .dark .top-btn:hover {
+        @apply bg-slate-700;
+    }
+
     .panel {
         @apply rounded-2xl border border-slate-200/90 bg-white/90 shadow-sm backdrop-blur;
     }
 
+    .dark .panel {
+        @apply border-slate-700/90 bg-slate-900/85;
+    }
+
     .panel-soft {
         @apply rounded-2xl border border-slate-200 bg-slate-50/90;
+    }
+
+    .dark .panel-soft {
+        @apply border-slate-700 bg-slate-800/90;
     }
 
     .btn-primary {
@@ -159,6 +243,10 @@
         @apply inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-60;
     }
 
+    .dark .btn-outline {
+        @apply border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700;
+    }
+
     .btn-danger {
         @apply inline-flex items-center justify-center rounded-lg bg-rose-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-rose-700;
     }
@@ -167,12 +255,24 @@
         @apply block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500;
     }
 
+    .dark .label {
+        @apply text-slate-300;
+    }
+
     .field {
         @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 outline-none ring-0 transition placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100;
     }
 
+    .dark .field {
+        @apply border-slate-600 bg-slate-800 text-slate-100 placeholder:text-slate-400 focus:ring-sky-700/40;
+    }
+
     .form-input {
         @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 outline-none ring-0 transition placeholder:text-slate-400 focus:border-sky-400;
+    }
+
+    .dark .form-input {
+        @apply border-slate-600 bg-slate-800 text-slate-100 placeholder:text-slate-400;
     }
 }
 
@@ -221,6 +321,11 @@
     40% { transform: translateX(5px); }
     60% { transform: translateX(-4px); }
     80% { transform: translateX(3px); }
+}
+
+@keyframes toastProgress {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
 }
 
 .guest-grid-overlay {

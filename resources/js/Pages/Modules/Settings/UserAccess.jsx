@@ -131,7 +131,7 @@ export default function UserAccessPage({ auth, users = [], roles = [], permissio
     };
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-bold text-slate-900">Manajemen User & Akses</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Manajemen User & Akses" />
 
             <div className="space-y-5">

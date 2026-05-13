@@ -7,11 +7,12 @@ use Midtrans\Snap;
 
 class MidtransService
 {
-    public function __construct()
+    public function __construct(private readonly PaymentGatewayConfigService $gatewayConfigService)
     {
-        Config::$serverKey = (string) config('services.midtrans.server_key');
-        Config::$clientKey = (string) config('services.midtrans.client_key');
-        Config::$isProduction = (bool) config('services.midtrans.is_production', false);
+        $midtrans = $this->gatewayConfigService->midtrans();
+        Config::$serverKey = (string) $midtrans['server_key'];
+        Config::$clientKey = (string) $midtrans['client_key'];
+        Config::$isProduction = (bool) ($midtrans['is_production'] ?? false);
         Config::$isSanitized = true;
         Config::$is3ds = true;
     }
@@ -28,7 +29,7 @@ class MidtransService
         $statusCode = $payload['status_code'] ?? '';
         $grossAmount = $payload['gross_amount'] ?? '';
 
-        $expected = hash('sha512', $orderId.$statusCode.$grossAmount.config('services.midtrans.server_key'));
+        $expected = hash('sha512', $orderId.$statusCode.$grossAmount.$this->gatewayConfigService->midtrans()['server_key']);
 
         return hash_equals($expected, $signature);
     }

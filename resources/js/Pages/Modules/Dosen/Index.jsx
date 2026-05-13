@@ -230,7 +230,7 @@ export default function Page({ auth, filters = null, dosens = { data: [], meta: 
     }, [dosens, serverSummary]);
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Data Master Dosen</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Data Dosen" />
 
             <ImportModal 

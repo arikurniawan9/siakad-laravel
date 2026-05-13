@@ -489,6 +489,31 @@ class KeuanganController extends Controller
         return back()->with('success', 'Tagihan berhasil ditambahkan.');
     }
 
+    public function storeBulkTagihan(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'tahun_akademik' => ['required', 'string', 'max:20'],
+            'semester_akademik' => ['required', 'integer', 'min:1', 'max:14'],
+            'tarif_ids' => ['required', 'array', 'min:1'],
+            'tarif_ids.*' => ['required', 'integer', 'exists:tarif_keuangans,id'],
+            'prodi_id' => ['nullable', 'integer', 'exists:prodis,id'],
+            'angkatan' => ['nullable', 'string', 'max:10'],
+            'jatuh_tempo' => ['nullable', 'date'],
+        ]);
+
+        if (FinancePeriod::isLocked($data['tahun_akademik'], $data['semester_akademik'])) {
+            return back()->with('error', 'Periode keuangan ini sudah dikunci.');
+        }
+
+        $result = $this->tagihanService->bulkGenerate($data);
+
+        if ($result['success'] === 0 && $result['skipped'] > 0) {
+            return back()->with('warning', "Tidak ada tagihan baru yang dibuat. {$result['skipped']} mahasiswa dilewati karena sudah memiliki tagihan serupa.");
+        }
+
+        return back()->with('success', "Berhasil membuat {$result['success']} tagihan baru. ({$result['skipped']} mahasiswa dilewati).");
+    }
+
     public function updateTagihanStatus(Request $request, Tagihan $tagihan): RedirectResponse
     {
         $previousStatus = $tagihan->status;

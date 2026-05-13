@@ -134,7 +134,7 @@ export default function Page({ auth, tabs = [], filters = null, ruangans = { dat
     };
 
     return (
-        <PageShell auth={auth} title="Ruangan" tabs={tabs} showFlash={false}>
+        <PageShell auth={auth} title="Ruangan" tabs={tabs} showFlash={false} heroVariant="corner" layoutHeader={false}>
             <ConfirmationModal
                 show={confirmingDeletion}
                 onClose={() => setConfirmingDeletion(false)}
@@ -151,18 +151,22 @@ export default function Page({ auth, tabs = [], filters = null, ruangans = { dat
                             <h3 className="mt-1 text-sm font-bold text-slate-900">Tambah Ruangan</h3>
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Kode Ruangan</label>
                             <input className="form-input" placeholder="Kode" value={form.data.kode} onChange={(e) => form.setData('kode', e.target.value)} />
                             <FieldError message={form.errors.kode} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Nama Ruangan</label>
                             <input className="form-input" placeholder="Nama Ruang" value={form.data.nama} onChange={(e) => form.setData('nama', e.target.value)} />
                             <FieldError message={form.errors.nama} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Gedung</label>
                             <input className="form-input" placeholder="Gedung" value={form.data.gedung} onChange={(e) => form.setData('gedung', e.target.value)} />
                             <FieldError message={form.errors.gedung} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Kapasitas</label>
                             <input type="number" className="form-input" placeholder="Kapasitas" value={form.data.kapasitas} onChange={(e) => form.setData('kapasitas', e.target.value)} />
                             <FieldError message={form.errors.kapasitas} />
                         </div>

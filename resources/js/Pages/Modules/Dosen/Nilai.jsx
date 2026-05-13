@@ -79,7 +79,7 @@ export default function Page({ auth, tahunAktif, kelasList = [], selectedKelas, 
     };
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Dosen - Input Nilai</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Dosen - Input Nilai" />
 
             <ConfirmationModal

@@ -200,7 +200,7 @@ export default function Page({ auth, tabs = [], filters = null, tahunAkademiks =
     };
 
     return (
-        <PageShell auth={auth} title="Tahun Akademik" tabs={tabs} showFlash={false}>
+        <PageShell auth={auth} title="Tahun Akademik" tabs={tabs} showFlash={false} heroVariant="corner" layoutHeader={false}>
             <ConfirmationModal
                 show={confirmingDeletion}
                 onClose={() => setConfirmingDeletion(false)}
@@ -218,22 +218,24 @@ export default function Page({ auth, tabs = [], filters = null, tahunAkademiks =
                         </div>
 
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Kode Tahun Akademik</label>
                             <input className="form-input" placeholder="Kode (2025/2026)" value={form.data.kode} onChange={(e) => form.setData('kode', e.target.value)} />
                             <FieldError message={errors.kode || form.errors.kode} />
                         </div>
 
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Nama Periode</label>
                             <input className="form-input" placeholder="Nama (Ganjil/Genap)" value={form.data.nama} onChange={(e) => form.setData('nama', e.target.value)} />
                             <FieldError message={errors.nama || form.errors.nama} />
                         </div>
 
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div>
+                                <label className="mb-1 block text-xs font-bold text-slate-700">Semester Aktif</label>
                                 <input
                                     type="number"
                                     min="1"
                                     className="form-input"
-                                    placeholder="Semester Aktif"
                                     value={form.data.semester_aktif}
                                     onChange={(e) => form.setData('semester_aktif', e.target.value)}
                                 />
@@ -247,10 +249,12 @@ export default function Page({ auth, tabs = [], filters = null, tahunAkademiks =
 
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div>
+                                <label className="mb-1 block text-xs font-bold text-slate-700">Tanggal Mulai</label>
                                 <input type="date" className="form-input" value={form.data.tanggal_mulai} onChange={(e) => form.setData('tanggal_mulai', e.target.value)} />
                                 <FieldError message={errors.tanggal_mulai || form.errors.tanggal_mulai} />
                             </div>
                             <div>
+                                <label className="mb-1 block text-xs font-bold text-slate-700">Tanggal Selesai</label>
                                 <input type="date" className="form-input" value={form.data.tanggal_selesai} onChange={(e) => form.setData('tanggal_selesai', e.target.value)} />
                                 <FieldError message={errors.tanggal_selesai || form.errors.tanggal_selesai} />
                             </div>

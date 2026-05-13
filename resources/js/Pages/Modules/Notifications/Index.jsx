@@ -104,7 +104,7 @@ export default function Page({ auth, inbox = { data: [] }, filters = { read: 'al
     }, [modules]);
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Inbox Notifikasi</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Inbox Notifikasi" />
 
             <div className="space-y-4">

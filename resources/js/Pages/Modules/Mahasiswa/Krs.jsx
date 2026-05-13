@@ -99,7 +99,7 @@ export default function Page({ auth, mahasiswa, tahunAktif, kelasAktif = [], cur
     const canSubmit = currentKrs && ['draft', 'rejected'].includes(currentKrs.status);
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Mahasiswa - KRS</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Mahasiswa - KRS" />
 
             <ConfirmationModal

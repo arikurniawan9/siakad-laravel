@@ -146,7 +146,7 @@ export default function Page({ auth, tabs = [], filters = null, prodis = [], kur
     };
 
     return (
-        <PageShell auth={auth} title="Mata Kuliah" tabs={tabs} showFlash={false}>
+        <PageShell auth={auth} title="Mata Kuliah" tabs={tabs} showFlash={false} heroVariant="corner" layoutHeader={false}>
             <ConfirmationModal
                 show={confirmingDeletion}
                 onClose={() => setConfirmingDeletion(false)}
@@ -163,6 +163,7 @@ export default function Page({ auth, tabs = [], filters = null, prodis = [], kur
                             <h3 className="mt-1 text-sm font-bold text-slate-900">Tambah Mata Kuliah</h3>
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Prodi</label>
                             <select className="form-input" value={form.data.prodi_id} onChange={(e) => form.setData('prodi_id', e.target.value)}>
                                 <option value="">Pilih Prodi</option>
                                 {prodis.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}
@@ -170,6 +171,7 @@ export default function Page({ auth, tabs = [], filters = null, prodis = [], kur
                             <FieldError message={form.errors.prodi_id} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Kurikulum</label>
                             <select className="form-input" value={form.data.kurikulum_id} onChange={(e) => form.setData('kurikulum_id', e.target.value)}>
                                 <option value="">Pilih Kurikulum</option>
                                 {kurikulums.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}
@@ -177,23 +179,28 @@ export default function Page({ auth, tabs = [], filters = null, prodis = [], kur
                             <FieldError message={form.errors.kurikulum_id} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Kode Mata Kuliah</label>
                             <input className="form-input" placeholder="Kode" value={form.data.kode} onChange={(e) => form.setData('kode', e.target.value)} />
                             <FieldError message={form.errors.kode} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Nama Mata Kuliah</label>
                             <input className="form-input" placeholder="Nama" value={form.data.nama} onChange={(e) => form.setData('nama', e.target.value)} />
                             <FieldError message={form.errors.nama} />
                         </div>
                         <div className="grid gap-3 sm:grid-cols-3">
                             <div>
+                                <label className="mb-1 block text-xs font-bold text-slate-700">Semester</label>
                                 <input type="number" className="form-input" placeholder="Semester" value={form.data.semester} onChange={(e) => form.setData('semester', e.target.value)} />
                                 <FieldError message={form.errors.semester} />
                             </div>
                             <div>
+                                <label className="mb-1 block text-xs font-bold text-slate-700">SKS</label>
                                 <input type="number" className="form-input" placeholder="SKS" value={form.data.sks} onChange={(e) => form.setData('sks', e.target.value)} />
                                 <FieldError message={form.errors.sks} />
                             </div>
                             <div>
+                                <label className="mb-1 block text-xs font-bold text-slate-700">Jenis</label>
                                 <input className="form-input" placeholder="Jenis" value={form.data.jenis} onChange={(e) => form.setData('jenis', e.target.value)} />
                                 <FieldError message={form.errors.jenis} />
                             </div>

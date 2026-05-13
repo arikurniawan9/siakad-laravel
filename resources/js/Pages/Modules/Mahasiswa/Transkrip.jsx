@@ -76,7 +76,7 @@ export default function Page({ auth, mahasiswa, ringkasan, rows = [], pesan }) {
     }
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Mahasiswa - Transkrip Nilai</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Mahasiswa - Transkrip" />
 
             <ModuleHero

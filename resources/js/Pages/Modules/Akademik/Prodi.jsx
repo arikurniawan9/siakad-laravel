@@ -176,7 +176,7 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
     };
 
     return (
-        <PageShell auth={auth} title="Program Studi" tabs={tabs} showFlash={false}>
+        <PageShell auth={auth} title="Program Studi" tabs={tabs} showFlash={false} heroVariant="corner" layoutHeader={false}>
             <ConfirmationModal
                 show={confirmingDeletion}
                 onClose={() => setConfirmingDeletion(false)}

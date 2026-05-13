@@ -154,33 +154,39 @@ class KeuanganSetupController extends Controller
             'installment_default' => ['nullable', 'integer', 'min:1', 'max:24', 'required_if:can_installment,1'],
         ]);
 
-        $canInstallment = (bool) ($validated['can_installment'] ?? false);
-        $installmentMax = $canInstallment ? (int) ($validated['installment_max'] ?? 0) : null;
-        $installmentDefault = $canInstallment ? (int) ($validated['installment_default'] ?? 0) : null;
-
-        if ($canInstallment && $installmentDefault > $installmentMax) {
-            return back()->withErrors([
-                'installment_default' => 'Cicilan default tidak boleh melebihi maksimum cicilan.',
-            ]);
+        $error = $this->saveTarifPayload($validated);
+        if ($error !== null) {
+            return back()->withErrors($error);
         }
 
-        TarifKeuangan::query()->updateOrCreate(
-            [
-                'jenis_tagihan_id' => (int) $validated['jenis_tagihan_id'],
-                'tahun_akademik' => trim((string) $validated['tahun_akademik']),
-                'semester_akademik' => (int) $validated['semester_akademik'],
-            ],
-            [
-                'nominal' => (float) $validated['nominal'],
-                'keterangan' => filled($validated['keterangan'] ?? null) ? trim((string) $validated['keterangan']) : null,
-                'is_active' => (bool) ($validated['is_active'] ?? true),
-                'can_installment' => $canInstallment,
-                'installment_max' => $installmentMax,
-                'installment_default' => $installmentDefault,
-            ]
-        );
-
         return back()->with('success', 'Tarif berhasil disimpan.');
+    }
+
+    public function storeTarifBulk(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.jenis_tagihan_id' => ['required', 'integer', 'exists:jenis_tagihans,id'],
+            'items.*.tahun_akademik' => ['required', 'string', 'max:20'],
+            'items.*.semester_akademik' => ['required', 'integer', 'min:1', 'max:14'],
+            'items.*.nominal' => ['required', 'numeric', 'min:0'],
+            'items.*.keterangan' => ['nullable', 'string', 'max:2000'],
+            'items.*.is_active' => ['boolean'],
+            'items.*.can_installment' => ['boolean'],
+            'items.*.installment_max' => ['nullable', 'integer', 'min:2', 'max:24', 'required_if:items.*.can_installment,1'],
+            'items.*.installment_default' => ['nullable', 'integer', 'min:1', 'max:24', 'required_if:items.*.can_installment,1'],
+        ]);
+
+        $savedCount = 0;
+        foreach ($validated['items'] as $idx => $item) {
+            $error = $this->saveTarifPayload($item);
+            if ($error !== null) {
+                return back()->withErrors($error)->with('error', 'Simpan massal gagal di baris ke-' . ($idx + 1) . '.');
+            }
+            $savedCount++;
+        }
+
+        return back()->with('success', "Simpan massal berhasil ({$savedCount} tarif).");
     }
 
     public function destroyTarif(TarifKeuangan $tarifKeuangan): RedirectResponse
@@ -189,5 +195,44 @@ class KeuanganSetupController extends Controller
 
         return back()->with('success', 'Tarif berhasil dihapus.');
     }
-}
 
+    private function saveTarifPayload(array $validated): ?array
+    {
+        $canInstallment = (bool) ($validated['can_installment'] ?? false);
+        $installmentMax = $canInstallment ? (int) ($validated['installment_max'] ?? 0) : null;
+        $installmentDefault = $canInstallment ? (int) ($validated['installment_default'] ?? 0) : null;
+
+        if ($canInstallment && $installmentDefault > $installmentMax) {
+            return [
+                'installment_default' => 'Cicilan default tidak boleh melebihi maksimum cicilan.',
+            ];
+        }
+
+        $identity = [
+            'jenis_tagihan_id' => (int) $validated['jenis_tagihan_id'],
+            'tahun_akademik' => trim((string) $validated['tahun_akademik']),
+            'semester_akademik' => (int) $validated['semester_akademik'],
+        ];
+
+        $payload = [
+            'nominal' => (float) $validated['nominal'],
+            'keterangan' => filled($validated['keterangan'] ?? null) ? trim((string) $validated['keterangan']) : null,
+            'is_active' => (bool) ($validated['is_active'] ?? true),
+            'can_installment' => $canInstallment,
+            'installment_max' => $installmentMax,
+            'installment_default' => $installmentDefault,
+            'deleted_at' => null,
+        ];
+
+        $existing = TarifKeuangan::withTrashed()->where($identity)->first();
+        if ($existing) {
+            $existing->fill($payload);
+            $existing->restore();
+            $existing->save();
+        } else {
+            TarifKeuangan::query()->create($identity + $payload);
+        }
+
+        return null;
+    }
+}

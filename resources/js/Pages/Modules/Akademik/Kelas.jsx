@@ -179,7 +179,7 @@ export default function Page({
     };
 
     return (
-        <PageShell auth={auth} title="Kelas" tabs={tabs} showFlash={false}>
+        <PageShell auth={auth} title="Kelas" tabs={tabs} showFlash={false} heroVariant="corner" layoutHeader={false}>
             <ConfirmationModal
                 show={confirmingDeletion}
                 onClose={() => setConfirmingDeletion(false)}
@@ -196,6 +196,7 @@ export default function Page({
                             <h3 className="mt-1 text-sm font-bold text-slate-900">Tambah Kelas</h3>
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Mata Kuliah</label>
                             <select className="form-input" value={form.data.mata_kuliah_id} onChange={(e) => form.setData('mata_kuliah_id', e.target.value)}>
                                 <option value="">Mata Kuliah</option>
                                 {mataKuliahs.map((item) => <option key={item.id} value={item.id}>{item.kode} - {item.nama}</option>)}
@@ -203,6 +204,7 @@ export default function Page({
                             <FieldError message={form.errors.mata_kuliah_id} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Dosen</label>
                             <select className="form-input" value={form.data.dosen_id} onChange={(e) => form.setData('dosen_id', e.target.value)}>
                                 <option value="">Dosen</option>
                                 {dosens.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}
@@ -211,23 +213,28 @@ export default function Page({
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div>
+                                <label className="mb-1 block text-xs font-bold text-slate-700">Kode Kelas</label>
                                 <input className="form-input" placeholder="Kode kelas" value={form.data.kode_kelas} onChange={(e) => form.setData('kode_kelas', e.target.value)} />
                                 <FieldError message={form.errors.kode_kelas} />
                             </div>
                             <div>
+                                <label className="mb-1 block text-xs font-bold text-slate-700">Tahun Akademik (Text)</label>
                                 <input className="form-input" placeholder="Tahun akademik" value={form.data.tahun_akademik} onChange={(e) => form.setData('tahun_akademik', e.target.value)} />
                                 <FieldError message={form.errors.tahun_akademik} />
                             </div>
                             <div>
+                                <label className="mb-1 block text-xs font-bold text-slate-700">Semester Akademik</label>
                                 <input type="number" className="form-input" placeholder="Semester" value={form.data.semester_akademik} onChange={(e) => form.setData('semester_akademik', e.target.value)} />
                                 <FieldError message={form.errors.semester_akademik} />
                             </div>
                             <div>
+                                <label className="mb-1 block text-xs font-bold text-slate-700">Kapasitas</label>
                                 <input type="number" className="form-input" placeholder="Kapasitas" value={form.data.kapasitas} onChange={(e) => form.setData('kapasitas', e.target.value)} />
                                 <FieldError message={form.errors.kapasitas} />
                             </div>
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Tahun Akademik (Referensi)</label>
                             <select className="form-input" value={form.data.tahun_akademik_id} onChange={(e) => form.setData('tahun_akademik_id', e.target.value)}>
                                 <option value="">Pilih Tahun Akademik</option>
                                 {tahunAkademiks.map((item) => <option key={item.id} value={item.id}>{item.kode} - Smt {item.semester_aktif}</option>)}
@@ -235,6 +242,7 @@ export default function Page({
                             <FieldError message={form.errors.tahun_akademik_id} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">Ruangan</label>
                             <select className="form-input" value={form.data.ruangan_id} onChange={(e) => form.setData('ruangan_id', e.target.value)}>
                                 <option value="">Pilih Ruang</option>
                                 {ruangans.map((item) => <option key={item.id} value={item.id}>{item.kode} - {item.nama}</option>)}

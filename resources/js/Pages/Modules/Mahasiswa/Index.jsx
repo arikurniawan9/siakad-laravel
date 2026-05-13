@@ -279,7 +279,7 @@ export default function Page({ auth, prodis = [], filters = null, mahasiswas = {
     }
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Data Master Mahasiswa</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Data Mahasiswa" />
 
             <ImportModal

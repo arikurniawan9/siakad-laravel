@@ -57,7 +57,7 @@ export default function Dashboard({ auth, stats: backendStats = null, superAdmin
         : 'Kerja cerdas, kerja tuntas, dan jaga dampak terbaik untuk kemajuan kampus hari ini.';
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={null}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Dashboard" />
 
             <section className="panel p-4 sm:p-5">

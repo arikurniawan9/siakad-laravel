@@ -133,10 +133,12 @@ export default function Page({ auth, filters = null, jenisPembayarans = { data: 
     const providerLabel = useMemo(() => ({
         manual: 'Manual',
         midtrans: 'Midtrans',
+        xendit: 'Xendit',
+        duitku: 'Duitku',
     }), []);
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Keuangan - Jenis Pembayaran</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Keuangan - Jenis Pembayaran" />
 
             <ModuleHero
@@ -164,22 +166,28 @@ export default function Page({ auth, filters = null, jenisPembayarans = { data: 
 
                     <form onSubmit={submit} className="mt-4 space-y-3">
                         <div>
+                            <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Kode</label>
                             <input className="form-input" placeholder="Kode (unik)" value={form.data.kode} onChange={(e) => form.setData('kode', e.target.value)} />
                             <FieldError message={form.errors.kode} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Nama</label>
                             <input className="form-input" placeholder="Nama tampilan" value={form.data.nama} onChange={(e) => form.setData('nama', e.target.value)} />
                             <FieldError message={form.errors.nama} />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
+                                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Provider</label>
                                 <select className="form-input" value={form.data.provider} onChange={(e) => form.setData('provider', e.target.value)}>
                                     <option value="manual">Manual</option>
                                     <option value="midtrans">Midtrans</option>
+                                    <option value="xendit">Xendit</option>
+                                    <option value="duitku">Duitku</option>
                                 </select>
                                 <FieldError message={form.errors.provider} />
                             </div>
                             <div>
+                                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Urutan Tampil</label>
                                 <input
                                     className="form-input"
                                     placeholder="Sort (0..)"
@@ -191,6 +199,7 @@ export default function Page({ auth, filters = null, jenisPembayarans = { data: 
                             </div>
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Payment Type</label>
                             <input
                                 className="form-input"
                                 placeholder="payment_type (opsional, mapping gateway)"
@@ -200,6 +209,7 @@ export default function Page({ auth, filters = null, jenisPembayarans = { data: 
                             <FieldError message={form.errors.payment_type} />
                         </div>
                         <div>
+                            <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Keterangan</label>
                             <textarea className="form-input min-h-[90px]" placeholder="Keterangan (opsional)" value={form.data.keterangan} onChange={(e) => form.setData('keterangan', e.target.value)} />
                             <FieldError message={form.errors.keterangan} />
                         </div>
@@ -357,6 +367,8 @@ export default function Page({ auth, filters = null, jenisPembayarans = { data: 
                                 <select className="form-input mt-1" value={edit.data.provider} onChange={(e) => edit.setData('provider', e.target.value)}>
                                     <option value="manual">Manual</option>
                                     <option value="midtrans">Midtrans</option>
+                                    <option value="xendit">Xendit</option>
+                                    <option value="duitku">Duitku</option>
                                 </select>
                                 <FieldError message={edit.errors.provider} />
                             </div>
@@ -401,4 +413,3 @@ export default function Page({ auth, filters = null, jenisPembayarans = { data: 
         </AuthenticatedLayout>
     );
 }
-

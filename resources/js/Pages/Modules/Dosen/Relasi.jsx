@@ -50,7 +50,7 @@ export default function Page({ auth, filters = null, prodis = [], dosens = { dat
     }, [summary, dosens]);
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Relasi Dosen</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Relasi Dosen" />
 
             <ModuleHero

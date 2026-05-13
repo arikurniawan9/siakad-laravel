@@ -30,7 +30,7 @@ export default function Page({ auth, tahunAktif = null, stats = null, recentKrs 
     ];
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-bold text-slate-900">Laporan Sistem</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Laporan Sistem" />
 
             <div className="space-y-5">

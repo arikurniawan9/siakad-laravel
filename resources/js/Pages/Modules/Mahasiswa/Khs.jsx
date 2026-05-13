@@ -103,7 +103,7 @@ export default function Page({ auth, mahasiswa, ringkasan, semesterRecords = [],
     const printPage = () => window.print();
 
     return (
-        <AuthenticatedLayout user={auth.user} menu={menu} header={<h2 className="text-xl font-extrabold text-slate-900">Mahasiswa - KHS</h2>}>
+        <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Mahasiswa - KHS" />
 
             <div className="space-y-4">
