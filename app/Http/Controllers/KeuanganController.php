@@ -14,6 +14,11 @@ use App\Models\Transaksi;
 use App\Models\FinanceReconciliation;
 use App\Notifications\TagihanIssued;
 use App\Notifications\TagihanStatusChanged;
+use App\Services\MidtransService;
+use App\Services\PaymentGatewayConfigService;
+use App\Services\TagihanService;
+use App\Services\XenditService;
+use App\Services\DuitkuService;
 use App\Support\Audit;
 use App\Support\FinancePeriod;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -23,9 +28,19 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 class KeuanganController extends Controller
 {
+    public function __construct(
+        private readonly TagihanService $tagihanService,
+        private readonly MidtransService $midtransService,
+        private readonly PaymentGatewayConfigService $gatewayConfigService,
+        private readonly XenditService $xenditService,
+        private readonly DuitkuService $duitkuService,
+    ) {
+    }
+
     public function index(): Response
     {
         $stats = [
@@ -552,6 +567,163 @@ class KeuanganController extends Controller
         }
 
         return back()->with('success', "Berhasil membuat {$result['success']} tagihan baru. ({$result['skipped']} mahasiswa dilewati).");
+    }
+
+    public function createGatewayTransaksi(Tagihan $tagihan): RedirectResponse
+    {
+        if ($tagihan->status === 'paid') {
+            return back()->with('error', 'Tagihan ini sudah lunas.');
+        }
+
+        if ((float) $tagihan->total <= 0) {
+            return back()->with('error', 'Total tagihan tidak valid untuk dibuat transaksi gateway.');
+        }
+
+        $provider = $this->gatewayConfigService->activeProvider();
+        if ($provider === 'manual') {
+            return back()->with('error', 'Provider aktif masih manual. Ubah dulu di Settings > Payment Gateway.');
+        }
+
+        $pending = $tagihan->transaksis()
+            ->where('status', 'pending')
+            ->where(function ($query) {
+                $query->whereNotNull('snap_token')
+                    ->orWhereNotNull('snap_redirect_url');
+            })
+            ->latest('id')
+            ->first();
+
+        if ($pending) {
+            return back()->with('success', 'Transaksi pending Midtrans sudah tersedia. Silakan lanjutkan pembayaran.');
+        }
+
+        $mahasiswa = $tagihan->mahasiswa()->first();
+        $grossAmount = (int) round((float) $tagihan->total);
+        $orderId = 'TAG-ORD-'.$tagihan->id.'-'.now()->timestamp;
+
+        try {
+        if ($provider === 'midtrans') {
+            if (! $this->gatewayConfigService->isMidtransReady()) {
+                return back()->with('error', 'Konfigurasi Midtrans belum lengkap.');
+            }
+
+            $payload = [
+                'transaction_details' => [
+                    'order_id' => $orderId,
+                    'gross_amount' => $grossAmount,
+                ],
+                'customer_details' => [
+                    'first_name' => (string) ($mahasiswa?->nama ?? 'Mahasiswa'),
+                    'email' => (string) ($mahasiswa?->email ?? 'tagihan@local.invalid'),
+                    'phone' => (string) ($mahasiswa?->phone ?? '081000000000'),
+                ],
+                'item_details' => [[
+                    'id' => (string) $tagihan->kode_tagihan,
+                    'price' => $grossAmount,
+                    'quantity' => 1,
+                    'name' => 'Tagihan '.$tagihan->kode_tagihan,
+                ]],
+            ];
+
+            $snapToken = $this->midtransService->createSnapToken($payload);
+            $midtransConfig = $this->gatewayConfigService->midtrans();
+            $baseUrl = ! empty($midtransConfig['is_production'])
+                ? 'https://app.midtrans.com/snap/v2/vtweb/'
+                : 'https://app.sandbox.midtrans.com/snap/v2/vtweb/';
+
+            Transaksi::query()->create([
+                'tagihan_id' => $tagihan->id,
+                'order_id' => $orderId,
+                'payment_type' => 'snap',
+                'gross_amount' => $grossAmount,
+                'status' => 'pending',
+                'snap_token' => $snapToken,
+                'snap_redirect_url' => $baseUrl.$snapToken,
+                'payload' => $payload,
+            ]);
+        } elseif ($provider === 'xendit') {
+            if (! $this->gatewayConfigService->isXenditReady()) {
+                return back()->with('error', 'Konfigurasi Xendit belum lengkap.');
+            }
+
+            $payload = [
+                'external_id' => $orderId,
+                'amount' => $grossAmount,
+                'description' => 'Tagihan '.$tagihan->kode_tagihan,
+                'payer_email' => (string) ($mahasiswa?->email ?? 'tagihan@local.invalid'),
+                'currency' => 'IDR',
+                'invoice_duration' => 86400,
+                'success_redirect_url' => route('keuangan.tagihan'),
+                'failure_redirect_url' => route('keuangan.tagihan'),
+            ];
+
+            $invoice = $this->xenditService->createInvoice($payload);
+
+            Transaksi::query()->create([
+                'tagihan_id' => $tagihan->id,
+                'order_id' => $orderId,
+                'payment_type' => 'xendit_invoice',
+                'transaction_id' => $invoice['id'] ?: null,
+                'gross_amount' => $grossAmount,
+                'status' => 'pending',
+                'snap_redirect_url' => $invoice['invoice_url'] ?: null,
+                'payload' => $invoice['raw'],
+            ]);
+        } elseif ($provider === 'duitku') {
+            if (! $this->gatewayConfigService->isDuitkuReady()) {
+                return back()->with('error', 'Konfigurasi Duitku belum lengkap.');
+            }
+
+            $duitku = $this->gatewayConfigService->duitku();
+            $signature = md5($duitku['merchant_code'].$orderId.$grossAmount.$duitku['api_key']);
+            $payload = [
+                'merchantCode' => $duitku['merchant_code'],
+                'paymentAmount' => $grossAmount,
+                'paymentMethod' => 'VC',
+                'merchantOrderId' => $orderId,
+                'productDetails' => 'Tagihan '.$tagihan->kode_tagihan,
+                'email' => (string) ($mahasiswa?->email ?? 'tagihan@local.invalid'),
+                'phoneNumber' => (string) ($mahasiswa?->phone ?? '081000000000'),
+                'callbackUrl' => route('payments.duitku.callback'),
+                'returnUrl' => route('keuangan.tagihan'),
+                'signature' => $signature,
+                'expiryPeriod' => 1440,
+            ];
+
+            $invoice = $this->duitkuService->createInvoice($payload);
+
+            Transaksi::query()->create([
+                'tagihan_id' => $tagihan->id,
+                'order_id' => $orderId,
+                'payment_type' => 'duitku',
+                'transaction_id' => $invoice['reference'] ?: null,
+                'gross_amount' => $grossAmount,
+                'status' => 'pending',
+                'snap_redirect_url' => $invoice['payment_url'],
+                'payload' => $invoice['raw'],
+            ]);
+        } else {
+            return back()->with('error', "Provider {$provider} tidak dikenali.");
+        }
+        } catch (Throwable $e) {
+            return back()->with('error', 'Gagal membuat transaksi gateway: '.$e->getMessage());
+        }
+
+        Audit::log(
+            source: 'finance',
+            action: 'gateway.create_transaksi',
+            entityType: 'tagihan',
+            entityId: (int) $tagihan->id,
+            message: 'Transaksi gateway dibuat dari halaman tagihan',
+            meta: [
+                'kode_tagihan' => (string) $tagihan->kode_tagihan,
+                'provider' => $provider,
+                'order_id' => (string) $orderId,
+                'gross_amount' => $grossAmount,
+            ],
+        );
+
+        return back()->with('success', 'Transaksi gateway berhasil dibuat. Buka detail transaksi untuk melanjutkan pembayaran.');
     }
 
     public function updateTagihanStatus(Request $request, Tagihan $tagihan): RedirectResponse

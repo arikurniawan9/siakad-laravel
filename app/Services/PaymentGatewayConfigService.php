@@ -77,4 +77,18 @@ class PaymentGatewayConfigService
             'api_key' => (string) ($config['duitku']['api_key'] ?? ''),
         ];
     }
+
+    public function isXenditReady(): bool
+    {
+        $xendit = $this->xendit();
+
+        return $xendit['secret_key'] !== '' && $xendit['callback_token'] !== '';
+    }
+
+    public function isDuitkuReady(): bool
+    {
+        $duitku = $this->duitku();
+
+        return $duitku['merchant_code'] !== '' && $duitku['api_key'] !== '';
+    }
 }

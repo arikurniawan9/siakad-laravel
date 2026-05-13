@@ -112,7 +112,7 @@ function ActionButton({ children, className = '', ...props }) {
     );
 }
 
-function TagihanCard({ item, onStatusChange, onDelete, onDetail, onCopy }) {
+function TagihanCard({ item, onStatusChange, onDelete, onDetail, onCopy, onGatewayCreate }) {
     return (
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
@@ -160,6 +160,9 @@ function TagihanCard({ item, onStatusChange, onDelete, onDetail, onCopy }) {
                     <option value="cancelled">cancelled</option>
                 </select>
                 <div className="flex flex-wrap justify-end gap-2">
+                    {item.status !== 'paid' ? (
+                        <ActionButton onClick={() => onGatewayCreate(item.id)}>Buat Gateway</ActionButton>
+                    ) : null}
                     <ActionButton onClick={() => onCopy(item.kode_tagihan, 'Kode tagihan')}>Salin Kode</ActionButton>
                     <ActionButton onClick={() => onDetail(item)}>Detail</ActionButton>
                     {item.transaksis_count > 0 ? (
@@ -284,6 +287,10 @@ export default function Page({
     const selectedTransactions = useMemo(() => selectedTagihan?.transactions || [], [selectedTagihan]);
     const selectedItems = useMemo(() => selectedTagihan?.items || [], [selectedTagihan]);
     const selectedPayments = useMemo(() => selectedTagihan?.pembayarans || [], [selectedTagihan]);
+    const activeCheckoutUrl = useMemo(() => {
+        const pending = selectedTransactions.find((trx) => trx.status === 'pending' && trx.redirect_url);
+        return pending?.redirect_url || null;
+    }, [selectedTransactions]);
 
     useEffect(() => {
         if (!selectedTagihan) return;
@@ -335,6 +342,10 @@ export default function Page({
 
     const updateStatus = (id, status) => {
         router.patch(route('keuangan.tagihan.status', id), { status }, { preserveScroll: true });
+    };
+
+    const createGatewayTransaksi = (id) => {
+        router.post(route('keuangan.tagihan.gateway', id), {}, { preserveScroll: true });
     };
 
     const submitPayment = (e) => {
@@ -607,6 +618,7 @@ export default function Page({
                                     onDelete={confirmDeletion}
                                     onDetail={setSelectedTagihan}
                                     onCopy={copyValue}
+                                    onGatewayCreate={createGatewayTransaksi}
                                 />
                             ))
                         ) : (
@@ -657,6 +669,15 @@ export default function Page({
                                                     >
                                                         Salin Kode
                                                     </button>
+                                                    {item.status !== 'paid' ? (
+                                                        <button
+                                                            type="button"
+                                                            className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
+                                                            onClick={() => createGatewayTransaksi(item.id)}
+                                                        >
+                                                            Buat Gateway
+                                                        </button>
+                                                    ) : null}
                                                     <button
                                                         type="button"
                                                         className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
@@ -867,9 +888,30 @@ export default function Page({
                                         <h4 className="text-sm font-bold text-slate-900">Riwayat Transaksi</h4>
                                         <p className="text-xs text-slate-500">{selectedTransactions.length} record</p>
                                     </div>
-                                    <Link href={route('keuangan.transaksi', { search: selectedTagihan.kode_tagihan })} className="btn-outline">
-                                        Buka Transaksi
-                                    </Link>
+                                    <div className="flex items-center gap-2">
+                                        {activeCheckoutUrl ? (
+                                            <a
+                                                href={activeCheckoutUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
+                                            >
+                                                Buka Checkout
+                                            </a>
+                                        ) : null}
+                                        {selectedTagihan.status !== 'paid' ? (
+                                            <button
+                                                type="button"
+                                                className="btn-primary"
+                                                onClick={() => createGatewayTransaksi(selectedTagihan.id)}
+                                            >
+                                                Buat Gateway
+                                            </button>
+                                        ) : null}
+                                        <Link href={route('keuangan.transaksi', { search: selectedTagihan.kode_tagihan })} className="btn-outline">
+                                            Buka Transaksi
+                                        </Link>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-3">
