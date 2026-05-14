@@ -174,6 +174,7 @@ class AkademikController extends Controller
         Excel::import($import, $data['file']);
 
         $summary = $this->syncMataKuliahRows($import->rows);
+        $this->syncProdiSksLulus($summary['touched_prodi_ids'] ?? []);
 
         return back()->with('success', "Import mata kuliah selesai. {$summary['created']} dibuat, {$summary['updated']} diperbarui, {$summary['skipped']} dilewati.");
     }
@@ -264,8 +265,9 @@ class AkademikController extends Controller
         Excel::import($import, $data['file']);
 
         $summary = $this->syncProdiRows($import->rows);
+        $this->syncProdiSksLulus($summary['touched_prodi_ids'] ?? []);
 
-        return back()->with('success', "Import prodi selesai. {$summary['created']} dibuat, {$summary['updated']} diperbarui, {$summary['skipped']} dilewati.");
+        return back()->with('success', "Import prodi selesai. {$summary['created']} dibuat, {$summary['updated']} diperbarui, {$summary['skipped']} dilewati. Nilai SKS lulus disinkronkan otomatis dari total SKS mata kuliah per jurusan.");
     }
 
     public function kurikulum(): Response
@@ -624,7 +626,7 @@ class AkademikController extends Controller
 
     private function syncMataKuliahRows(array $rows): array
     {
-        $summary = ['created' => 0, 'updated' => 0, 'skipped' => 0];
+        $summary = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'touched_prodi_ids' => []];
 
         foreach ($rows as $row) {
             $kode = trim((string) ($row['kode'] ?? ''));
@@ -660,10 +662,45 @@ class AkademikController extends Controller
 
             $existing = MataKuliah::query()->where('kode', $kode)->first();
             MataKuliah::query()->updateOrCreate(['kode' => $kode], ['kode' => $kode] + $payload);
+            $summary['touched_prodi_ids'][] = (int) $prodi->id;
+            if ($existing && (int) $existing->prodi_id !== (int) $prodi->id) {
+                $summary['touched_prodi_ids'][] = (int) $existing->prodi_id;
+            }
             $existing ? $summary['updated']++ : $summary['created']++;
         }
 
         return $summary;
+    }
+
+    private function syncProdiSksLulus(array $prodiIds): void
+    {
+        $prodiIds = array_values(array_unique(array_filter(array_map('intval', $prodiIds))));
+        if ($prodiIds === []) {
+            return;
+        }
+
+        $jurusanIds = Prodi::query()
+            ->whereIn('id', $prodiIds)
+            ->pluck('jurusan_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($jurusanIds === []) {
+            return;
+        }
+
+        foreach ($jurusanIds as $jurusanId) {
+            $totalSksJurusan = (int) MataKuliah::query()
+                ->whereHas('prodi', fn ($query) => $query->where('jurusan_id', $jurusanId))
+                ->sum('sks');
+
+            Prodi::query()
+                ->where('jurusan_id', $jurusanId)
+                ->update(['sks_lulus' => $totalSksJurusan]);
+        }
     }
 
     private function prodiQuery(Request $request)
@@ -737,7 +774,7 @@ class AkademikController extends Controller
 
     private function syncProdiRows(array $rows): array
     {
-        $summary = ['created' => 0, 'updated' => 0, 'skipped' => 0];
+        $summary = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'touched_prodi_ids' => []];
 
         foreach ($rows as $row) {
             $kode = trim((string) ($row['kode'] ?? ''));
@@ -760,12 +797,20 @@ class AkademikController extends Controller
                 'nama' => $nama,
                 'jenjang' => trim((string) ($row['jenjang'] ?? 'S1')),
                 'semester_total' => (int) ($row['semester_total'] ?? 8),
-                'sks_lulus' => (int) ($row['sks_lulus'] ?? 144),
+                'sks_lulus' => 0,
                 'is_active' => $this->booleanFromRow($row['is_active'] ?? false),
             ];
 
             $existing = Prodi::query()->where('kode', $kode)->first();
             Prodi::query()->updateOrCreate(['kode' => $kode], ['kode' => $kode] + $payload);
+            if ($existing) {
+                $summary['touched_prodi_ids'][] = (int) $existing->id;
+            } else {
+                $created = Prodi::query()->where('kode', $kode)->first(['id']);
+                if ($created) {
+                    $summary['touched_prodi_ids'][] = (int) $created->id;
+                }
+            }
             $existing ? $summary['updated']++ : $summary['created']++;
         }
 
@@ -1136,14 +1181,20 @@ class AkademikController extends Controller
 
     public function storeProdi(StoreProdiRequest $request): RedirectResponse
     {
-        Prodi::query()->create($request->validated());
+        $payload = $request->validated();
+        unset($payload['sks_lulus']);
+        $prodi = Prodi::query()->create($payload + ['sks_lulus' => 0]);
+        $this->syncProdiSksLulus([$prodi->id]);
 
         return back()->with('success', 'Prodi berhasil ditambahkan.');
     }
 
     public function updateProdi(UpdateProdiRequest $request, Prodi $prodi): RedirectResponse
     {
-        $prodi->update($request->validated());
+        $payload = $request->validated();
+        unset($payload['sks_lulus']);
+        $prodi->update($payload);
+        $this->syncProdiSksLulus([$prodi->id]);
 
         return back()->with('success', 'Prodi berhasil diperbarui.');
     }
@@ -1161,14 +1212,17 @@ class AkademikController extends Controller
 
     public function storeMataKuliah(StoreMataKuliahRequest $request): RedirectResponse
     {
-        MataKuliah::query()->create($request->validated());
+        $mataKuliah = MataKuliah::query()->create($request->validated());
+        $this->syncProdiSksLulus([(int) $mataKuliah->prodi_id]);
 
         return back()->with('success', 'Mata kuliah berhasil ditambahkan.');
     }
 
     public function updateMataKuliah(UpdateMataKuliahRequest $request, MataKuliah $mataKuliah): RedirectResponse
     {
+        $oldProdiId = (int) $mataKuliah->prodi_id;
         $mataKuliah->update($request->validated());
+        $this->syncProdiSksLulus([$oldProdiId, (int) $mataKuliah->prodi_id]);
 
         return back()->with('success', 'Mata kuliah berhasil diperbarui.');
     }
@@ -1179,7 +1233,9 @@ class AkademikController extends Controller
             return back()->with('error', 'Mata kuliah tidak dapat dihapus karena masih dipakai oleh kelas.');
         }
 
+        $prodiId = (int) $mataKuliah->prodi_id;
         $mataKuliah->delete();
+        $this->syncProdiSksLulus([$prodiId]);
 
         return back()->with('success', 'Mata kuliah berhasil dihapus.');
     }

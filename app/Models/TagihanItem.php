@@ -23,6 +23,7 @@ class TagihanItem extends Model
         'potongan',
         'denda',
         'total',
+        'jatuh_tempo',
         'keterangan',
         'sort_order',
     ];
@@ -32,6 +33,7 @@ class TagihanItem extends Model
         'potongan' => 'decimal:2',
         'denda' => 'decimal:2',
         'total' => 'decimal:2',
+        'jatuh_tempo' => 'date',
         'sort_order' => 'integer',
     ];
 
@@ -50,4 +52,3 @@ class TagihanItem extends Model
         return $this->hasMany(PembayaranAllocation::class, 'tagihan_item_id');
     }
 }
-

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AppSetting;
+use App\Models\AuditLog;
 use App\Models\DatabaseMaintenanceLog;
 use App\Models\FinanceReconciliation;
 use App\Models\FinancePeriodLock;
@@ -13,6 +14,7 @@ use App\Models\TahunAkademik;
 use App\Models\User;
 use App\Services\DatabaseMaintenanceService;
 use App\Support\Audit;
+use App\Support\SensitiveActionConfirmation;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,6 +50,15 @@ class SettingsController extends Controller
             'app_env' => app()->environment(),
             'app_name' => config('app.name'),
             'php_version' => PHP_VERSION,
+            'backup_total' => count($this->databaseMaintenanceService->listBackups()),
+            'backup_last_at' => $this->latestBackupTimestamp(),
+            'maintenance_failed_today' => DatabaseMaintenanceLog::query()
+                ->where('status', 'failed')
+                ->whereDate('executed_at', now()->toDateString())
+                ->count(),
+            'reconciliation_pending_total' => FinanceReconciliation::query()
+                ->where('status', 'pending')
+                ->count(),
         ];
 
         return Inertia::render('Modules/Settings/Index', [
@@ -93,6 +104,35 @@ class SettingsController extends Controller
                 'log_status' => $logStatus,
                 'log_limit' => $logLimit,
             ],
+            'criticalActions' => AuditLog::query()
+                ->with('user:id,name,email')
+                ->whereIn('source', ['settings', 'finance'])
+                ->whereIn('action', [
+                    'payment_gateway.update',
+                    'payment_gateway.test',
+                    'payment_automation.update',
+                    'reconciliation.bulk_resolve',
+                    'reconciliation.bulk_ignore',
+                    'reconciliation.export_csv',
+                    'period.lock',
+                    'period.unlock',
+                ])
+                ->latest('created_at')
+                ->limit(12)
+                ->get()
+                ->map(fn (AuditLog $log) => [
+                    'id' => (int) $log->id,
+                    'source' => (string) $log->source,
+                    'action' => (string) $log->action,
+                    'message' => (string) ($log->message ?? '-'),
+                    'created_at' => optional($log->created_at)->toDateTimeString(),
+                    'actor' => $log->user ? [
+                        'id' => (int) $log->user->id,
+                        'name' => (string) $log->user->name,
+                        'email' => (string) $log->user->email,
+                    ] : null,
+                ])
+                ->values(),
         ]);
     }
 
@@ -180,6 +220,89 @@ class SettingsController extends Controller
         ]);
     }
 
+    public function paymentAutomation(): Response
+    {
+        $stored = AppSetting::query()->where('key', 'payment_automation')->first();
+        $value = is_array($stored?->value) ? $stored->value : [];
+
+        return Inertia::render('Modules/Settings/PaymentAutomation', [
+            'automationSettings' => [
+                'auto_post_gateway_payment' => (bool) ($value['auto_post_gateway_payment'] ?? true),
+                'allow_auto_reconcile_bank_mutation' => (bool) ($value['allow_auto_reconcile_bank_mutation'] ?? false),
+                'bank_mutation_provider' => (string) ($value['bank_mutation_provider'] ?? 'none'),
+                'match_strategy' => (string) ($value['match_strategy'] ?? 'order_id_and_amount'),
+                'min_confidence_percent' => (int) ($value['min_confidence_percent'] ?? 95),
+                'auto_mark_paid_on_match' => (bool) ($value['auto_mark_paid_on_match'] ?? false),
+                'notes' => (string) ($value['notes'] ?? ''),
+            ],
+        ]);
+    }
+
+    public function updatePaymentAutomation(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'auto_post_gateway_payment' => ['boolean'],
+            'allow_auto_reconcile_bank_mutation' => ['boolean'],
+            'bank_mutation_provider' => ['required', Rule::in(['none', 'bca', 'bni', 'bri', 'mandiri', 'other'])],
+            'match_strategy' => ['required', Rule::in(['order_id_and_amount', 'amount_and_name', 'amount_only'])],
+            'min_confidence_percent' => ['required', 'integer', 'min:50', 'max:100'],
+            'auto_mark_paid_on_match' => ['boolean'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $stored = AppSetting::query()->where('key', 'payment_automation')->first();
+        $current = is_array($stored?->value) ? $stored->value : [];
+
+        $payload = [
+            'auto_post_gateway_payment' => (bool) ($validated['auto_post_gateway_payment'] ?? false),
+            'allow_auto_reconcile_bank_mutation' => (bool) ($validated['allow_auto_reconcile_bank_mutation'] ?? false),
+            'bank_mutation_provider' => (string) $validated['bank_mutation_provider'],
+            'match_strategy' => (string) $validated['match_strategy'],
+            'min_confidence_percent' => (int) $validated['min_confidence_percent'],
+            'auto_mark_paid_on_match' => (bool) ($validated['auto_mark_paid_on_match'] ?? false),
+            'notes' => trim((string) ($validated['notes'] ?? '')),
+        ];
+
+        AppSetting::query()->updateOrCreate(
+            ['key' => 'payment_automation'],
+            ['value' => $payload]
+        );
+
+        Audit::log(
+            source: 'settings',
+            action: 'payment_automation.update',
+            entityType: 'app_setting',
+            entityId: null,
+            message: 'Pengaturan otomasi pembayaran diperbarui',
+            meta: [
+                'auto_post_gateway_payment' => (bool) $payload['auto_post_gateway_payment'],
+                'allow_auto_reconcile_bank_mutation' => (bool) $payload['allow_auto_reconcile_bank_mutation'],
+                'bank_mutation_provider' => (string) $payload['bank_mutation_provider'],
+                'match_strategy' => (string) $payload['match_strategy'],
+                'min_confidence_percent' => (int) $payload['min_confidence_percent'],
+                'auto_mark_paid_on_match' => (bool) $payload['auto_mark_paid_on_match'],
+                'before' => [
+                    'auto_post_gateway_payment' => (bool) ($current['auto_post_gateway_payment'] ?? true),
+                    'allow_auto_reconcile_bank_mutation' => (bool) ($current['allow_auto_reconcile_bank_mutation'] ?? false),
+                    'bank_mutation_provider' => (string) ($current['bank_mutation_provider'] ?? 'none'),
+                    'match_strategy' => (string) ($current['match_strategy'] ?? 'order_id_and_amount'),
+                    'min_confidence_percent' => (int) ($current['min_confidence_percent'] ?? 95),
+                    'auto_mark_paid_on_match' => (bool) ($current['auto_mark_paid_on_match'] ?? false),
+                ],
+                'after' => [
+                    'auto_post_gateway_payment' => (bool) $payload['auto_post_gateway_payment'],
+                    'allow_auto_reconcile_bank_mutation' => (bool) $payload['allow_auto_reconcile_bank_mutation'],
+                    'bank_mutation_provider' => (string) $payload['bank_mutation_provider'],
+                    'match_strategy' => (string) $payload['match_strategy'],
+                    'min_confidence_percent' => (int) $payload['min_confidence_percent'],
+                    'auto_mark_paid_on_match' => (bool) $payload['auto_mark_paid_on_match'],
+                ],
+            ],
+        );
+
+        return back()->with('success', 'Pengaturan otomasi pembayaran berhasil disimpan.');
+    }
+
     public function updatePaymentGateway(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -220,10 +343,34 @@ class SettingsController extends Controller
                 'active_provider' => "Konfigurasi {$activeProvider} belum lengkap untuk dijadikan provider aktif.",
             ]);
         }
+        $this->validateMidtransModeKey($payload);
 
         AppSetting::query()->updateOrCreate(
             ['key' => 'payment_gateway'],
             ['value' => $payload]
+        );
+
+        Audit::log(
+            source: 'settings',
+            action: 'payment_gateway.update',
+            entityType: 'app_setting',
+            entityId: null,
+            message: 'Konfigurasi payment gateway diperbarui',
+            meta: [
+                'active_provider' => (string) $payload['active_provider'],
+                'is_production' => (bool) $payload['is_production'],
+                'before' => [
+                    'active_provider' => (string) ($current['active_provider'] ?? 'midtrans'),
+                    'is_production' => (bool) ($current['is_production'] ?? false),
+                ],
+                'after' => [
+                    'active_provider' => (string) $payload['active_provider'],
+                    'is_production' => (bool) $payload['is_production'],
+                ],
+                'midtrans_configured' => filled($payload['midtrans']['server_key'] ?? null) && filled($payload['midtrans']['client_key'] ?? null),
+                'xendit_configured' => filled($payload['xendit']['secret_key'] ?? null) && filled($payload['xendit']['callback_token'] ?? null),
+                'duitku_configured' => filled($payload['duitku']['merchant_code'] ?? null) && filled($payload['duitku']['api_key'] ?? null),
+            ],
         );
 
         return back()->with('success', 'Pengaturan payment gateway berhasil disimpan.');
@@ -241,6 +388,15 @@ class SettingsController extends Controller
         if (! $this->isPaymentProviderReady($provider, $config)) {
             return back()->with('error', "Konfigurasi {$provider} belum lengkap.");
         }
+
+        Audit::log(
+            source: 'settings',
+            action: 'payment_gateway.test',
+            entityType: 'app_setting',
+            entityId: null,
+            message: 'Tes konfigurasi payment gateway dijalankan',
+            meta: ['provider' => $provider],
+        );
 
         return back()->with('success', "Tes konfigurasi {$provider} berhasil (format credential valid).");
     }
@@ -526,6 +682,21 @@ class SettingsController extends Controller
             ->get();
 
         $filename = 'finance-reconciliation-'.now()->format('Ymd-His').'.csv';
+        Audit::log(
+            source: 'settings',
+            action: 'reconciliation.export_csv',
+            entityType: 'finance_reconciliation',
+            entityId: null,
+            message: 'Export CSV rekonsiliasi keuangan',
+            meta: [
+                'status' => $status,
+                'search' => $search,
+                'limit' => $limit,
+                'sort_by' => $sortBy,
+                'sort_dir' => $sortDir,
+                'filename' => $filename,
+            ],
+        );
 
         return response()->streamDownload(function () use ($rows) {
             $handle = fopen('php://output', 'w');
@@ -762,7 +933,9 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'backup_file' => ['required', 'file', 'mimes:sql,txt', 'max:51200'],
+            'confirmation' => ['required', 'string'],
         ]);
+        SensitiveActionConfirmation::assert((string) $data['confirmation'], SensitiveActionConfirmation::RESTORE_DATABASE);
 
         try {
             $result = $this->databaseMaintenanceService->restore($data['backup_file']);
@@ -781,6 +954,11 @@ class SettingsController extends Controller
 
     public function restoreDatabaseFromStoredBackup(Request $request, string $filename): RedirectResponse
     {
+        $data = $request->validate([
+            'confirmation' => ['required', 'string'],
+        ]);
+        SensitiveActionConfirmation::assert((string) $data['confirmation'], SensitiveActionConfirmation::RESTORE_DATABASE);
+
         try {
             $result = $this->databaseMaintenanceService->restoreFromStoredBackup($filename);
             $message = 'Restore database selesai. Statements: '.($result['statements'] ?? 0).', durasi: '.($result['elapsed_ms'] ?? 0).'ms.';
@@ -800,12 +978,7 @@ class SettingsController extends Controller
         $data = $request->validate([
             'confirmation' => ['required', 'string'],
         ]);
-
-        if (trim((string) $data['confirmation']) !== 'RESET DATABASE') {
-            return back()->withErrors([
-                'confirmation' => 'Ketik tepat: RESET DATABASE',
-            ]);
-        }
+        SensitiveActionConfirmation::assert((string) $data['confirmation'], SensitiveActionConfirmation::RESET_DATABASE);
 
         try {
             $this->databaseMaintenanceService->resetExceptSuperAdmin();
@@ -829,6 +1002,11 @@ class SettingsController extends Controller
 
     public function deleteBackup(Request $request, string $filename): RedirectResponse
     {
+        $data = $request->validate([
+            'confirmation' => ['required', 'string'],
+        ]);
+        SensitiveActionConfirmation::assert((string) $data['confirmation'], SensitiveActionConfirmation::DELETE_BACKUP);
+
         try {
             $this->databaseMaintenanceService->deleteBackup($filename);
             $this->logMaintenance($request, 'delete-backup', 'success', $filename, 'Hapus file backup berhasil.');
@@ -845,7 +1023,9 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'older_than_days' => ['required', 'integer', 'min:1', 'max:3650'],
+            'confirmation' => ['required', 'string'],
         ]);
+        SensitiveActionConfirmation::assert((string) $data['confirmation'], SensitiveActionConfirmation::PURGE_BACKUP);
 
         try {
             $deleted = $this->databaseMaintenanceService->purgeOldBackups((int) $data['older_than_days']);
@@ -1030,6 +1210,53 @@ class SettingsController extends Controller
             'manual' => true,
             default => false,
         };
+    }
+
+    private function validateMidtransModeKey(array $config): void
+    {
+        $serverKey = trim((string) ($config['midtrans']['server_key'] ?? ''));
+        $clientKey = trim((string) ($config['midtrans']['client_key'] ?? ''));
+        if ($serverKey === '' && $clientKey === '') {
+            return;
+        }
+
+        $serverLooksLikeServerKey = str_contains(strtolower($serverKey), 'server');
+        $clientLooksLikeClientKey = str_contains(strtolower($clientKey), 'client');
+        if (! $serverLooksLikeServerKey || ! $clientLooksLikeClientKey) {
+            throw ValidationException::withMessages([
+                'midtrans_server_key' => 'Format key Midtrans tidak valid. Isi Server Key pada kolom server (Mid-server / SB-Mid-server) dan Client Key pada kolom client (Mid-client / SB-Mid-client).',
+            ]);
+        }
+
+        $isProduction = (bool) ($config['is_production'] ?? false);
+        $serverIsSandbox = str_starts_with($serverKey, 'SB-');
+        $clientIsSandbox = str_starts_with($clientKey, 'SB-');
+
+        if ($isProduction && ($serverIsSandbox || $clientIsSandbox)) {
+            throw ValidationException::withMessages([
+                'midtrans_server_key' => 'Mode production aktif, gunakan key production (Mid-server / Mid-client).',
+            ]);
+        }
+
+        if (! $isProduction && (! $serverIsSandbox || ! $clientIsSandbox)) {
+            throw ValidationException::withMessages([
+                'midtrans_server_key' => 'Mode sandbox aktif, gunakan key sandbox (SB-Mid-server / SB-Mid-client).',
+            ]);
+        }
+    }
+
+    private function latestBackupTimestamp(): ?string
+    {
+        $backups = $this->databaseMaintenanceService->listBackups();
+        if ($backups === []) {
+            return null;
+        }
+
+        $latest = collect($backups)->sortByDesc(fn ($item) => (int) ($item['last_modified'] ?? 0))->first();
+
+        return isset($latest['last_modified'])
+            ? date('Y-m-d H:i:s', (int) $latest['last_modified'])
+            : null;
     }
 
     private function resolveReconciliationItem(FinanceReconciliation $item, ?string $notes, ?int $userId): bool

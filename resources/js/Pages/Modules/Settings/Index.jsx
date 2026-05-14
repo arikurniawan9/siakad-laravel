@@ -8,12 +8,12 @@ const statusClasses = {
     inactive: 'bg-slate-200 text-slate-700',
 };
 
-export default function Page({ auth, stats = null, recentUsers = [], backups = [], maintenanceLogs = [], logFilters = {} }) {
+export default function Page({ auth, stats = null, recentUsers = [], backups = [], maintenanceLogs = [], logFilters = {}, criticalActions = [] }) {
     const { menu, flash, errors } = usePage().props;
     const backupForm = useForm({});
-    const restoreForm = useForm({ backup_file: null });
+    const restoreForm = useForm({ backup_file: null, confirmation: 'RESTORE DATABASE' });
     const resetForm = useForm({ confirmation: '' });
-    const purgeForm = useForm({ older_than_days: 30 });
+    const purgeForm = useForm({ older_than_days: 30, confirmation: 'PURGE BACKUP' });
     const userRoles = Array.isArray(auth?.roles) ? auth.roles : [];
     const isSuperAdmin = userRoles.includes('super-admin');
 
@@ -25,6 +25,12 @@ export default function Page({ auth, stats = null, recentUsers = [], backups = [
         { label: 'User Aktif', value: stats?.user_aktif ?? 0, tone: 'text-emerald-700' },
         { label: 'Email Verified', value: stats?.email_terverifikasi ?? 0, tone: 'text-sky-700' },
         { label: 'Semester Aktif', value: stats?.semester_aktif ?? '-', tone: 'text-amber-700' },
+    ];
+    const healthCards = [
+        { label: 'Backup Tersedia', value: stats?.backup_total ?? 0, tone: 'text-emerald-700' },
+        { label: 'Backup Terakhir', value: stats?.backup_last_at || '-', tone: 'text-slate-800' },
+        { label: 'Maintenance Gagal Hari Ini', value: stats?.maintenance_failed_today ?? 0, tone: 'text-rose-700' },
+        { label: 'Rekonsiliasi Pending', value: stats?.reconciliation_pending_total ?? 0, tone: 'text-amber-700' },
     ];
 
     const confirmReset = () => {
@@ -44,6 +50,7 @@ export default function Page({ auth, stats = null, recentUsers = [], backups = [
 
     const handleDeleteBackup = () => {
         router.delete(route('settings.database.delete', itemToProcess), {
+            data: { confirmation: 'DELETE BACKUP' },
             onSuccess: () => {
                 setConfirmingAction(null);
                 setItemToProcess(null);
@@ -162,6 +169,19 @@ export default function Page({ auth, stats = null, recentUsers = [], backups = [
                     </section>
                 </div>
 
+                <section className="panel p-5">
+                    <h3 className="text-sm font-bold text-slate-900">Operational Health</h3>
+                    <p className="mt-1 text-xs text-slate-500">Ringkasan cepat untuk status backup, maintenance, dan antrean rekonsiliasi.</p>
+                    <div className="mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+                        {healthCards.map((item) => (
+                            <article key={item.label} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
+                                <p className={`mt-1.5 text-sm font-black ${item.tone}`}>{item.value}</p>
+                            </article>
+                        ))}
+                    </div>
+                </section>
+
                 {isSuperAdmin && (
                     <section className="panel p-5">
                         <h3 className="text-sm font-bold text-slate-900">Pemeliharaan Database</h3>
@@ -252,6 +272,23 @@ export default function Page({ auth, stats = null, recentUsers = [], backups = [
                                                     Hapus
                                                 </button>
                                             </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="mb-3 flex items-center justify-between gap-2">
+                                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Aksi Kritis Terbaru</p>
+                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">{criticalActions.length} item</span>
+                                </div>
+                                <div className="space-y-2">
+                                    {criticalActions.length === 0 && <p className="text-xs text-slate-500">Belum ada aksi kritis terbaru.</p>}
+                                    {criticalActions.map((item) => (
+                                        <div key={item.id} className="rounded-xl border border-slate-100 px-3 py-2">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{item.action}</p>
+                                            <p className="mt-1 text-xs font-semibold text-slate-800">{item.message}</p>
+                                            <p className="mt-1 text-[11px] text-slate-500">{item.created_at || '-'} | {item.actor?.name || 'System'}</p>
                                         </div>
                                     ))}
                                 </div>

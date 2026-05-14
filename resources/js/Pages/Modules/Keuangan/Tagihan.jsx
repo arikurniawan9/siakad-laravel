@@ -252,6 +252,7 @@ export default function Page({
     const [selectedTagihan, setSelectedTagihan] = useState(null);
     const [allocationDraft, setAllocationDraft] = useState({});
     const [bulkModalOpen, setBulkModalOpen] = useState(false);
+    const [createModalOpen, setCreateModalOpen] = useState(false);
 
     const [confirmingDeletion, setConfirmingDeletion] = useState(false);
     const [itemToDelete, setItemToDelete] = useState(null);
@@ -261,6 +262,7 @@ export default function Page({
         tarif_id: '',
         tahun_akademik: '2025/2026',
         semester_akademik: 1,
+        installment_months: 1,
         jatuh_tempo: '',
         keterangan: '',
     });
@@ -287,6 +289,20 @@ export default function Page({
     const selectedTransactions = useMemo(() => selectedTagihan?.transactions || [], [selectedTagihan]);
     const selectedItems = useMemo(() => selectedTagihan?.items || [], [selectedTagihan]);
     const selectedPayments = useMemo(() => selectedTagihan?.pembayarans || [], [selectedTagihan]);
+    const selectedTarif = useMemo(
+        () => (activeTarifs || []).find((tarif) => Number(tarif.id) === Number(form.data.tarif_id)) || null,
+        [activeTarifs, form.data.tarif_id]
+    );
+    const installmentPreview = useMemo(() => {
+        if (!selectedTarif) return null;
+        const months = Math.max(1, Number(form.data.installment_months || 1));
+        const total = Number(selectedTarif.nominal || 0);
+        return {
+            months,
+            perMonth: months > 0 ? Math.floor(total / months) : total,
+            remainder: months > 0 ? total % months : 0,
+        };
+    }, [selectedTarif, form.data.installment_months]);
     const activeCheckoutUrl = useMemo(() => {
         const pending = selectedTransactions.find((trx) => trx.status === 'pending' && trx.redirect_url);
         return pending?.redirect_url || null;
@@ -306,7 +322,6 @@ export default function Page({
 
     const submit = (e) => {
         e.preventDefault();
-        const selectedTarif = (activeTarifs || []).find((tarif) => Number(tarif.id) === Number(form.data.tarif_id));
         if (!selectedTarif) {
             form.setError('tarif_id', 'Pilih tarif dari Setup Tarif terlebih dahulu.');
             return;
@@ -319,6 +334,7 @@ export default function Page({
             semester_akademik: Number(form.data.semester_akademik || selectedTarif.semester_akademik || 1),
             jatuh_tempo: form.data.jatuh_tempo || null,
             keterangan: form.data.keterangan || null,
+            installment_months: Number(form.data.installment_months || 1),
             items: [
                 {
                     jenis_tagihan_id: selectedTarif.jenis_tagihan_id,
@@ -335,7 +351,10 @@ export default function Page({
         form.transform(() => payload);
         form.post(route('keuangan.tagihan.store'), {
             preserveScroll: true,
-            onSuccess: () => form.reset('tarif_id', 'jatuh_tempo', 'keterangan'),
+            onSuccess: () => {
+                form.reset('tarif_id', 'installment_months', 'jatuh_tempo', 'keterangan');
+                setCreateModalOpen(false);
+            },
             onFinish: () => form.transform((data) => data),
         });
     };
@@ -500,63 +519,14 @@ export default function Page({
                 note={`Total tagihan terdata: ${tagihans.meta?.total ?? 0}`}
             />
 
-            <div className="grid gap-4 xl:grid-cols-3">
-                <section className="panel p-4 xl:col-span-1">
-                    <h3 className="text-sm font-bold text-slate-900">Tambah Tagihan</h3>
-                    {flash?.error && <p className="mt-2 rounded-lg bg-rose-100 px-3 py-2 text-xs font-semibold text-rose-700">{flash.error}</p>}
-                    {flash?.success && <p className="mt-2 rounded-lg bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-700">{flash.success}</p>}
-                    <form onSubmit={submit} className="mt-3 space-y-2">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-700">Mahasiswa</label>
-                            <select className="form-input mt-1" value={form.data.mahasiswa_id} onChange={(e) => form.setData('mahasiswa_id', e.target.value)}>
-                                <option value="">Pilih mahasiswa</option>
-                                {mahasiswas.map((m) => (
-                                    <option key={m.id} value={m.id}>
-                                        {m.nim} - {m.nama}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-700">Tarif (Dari Setup Tarif)</label>
-                            <select className="form-input mt-1" value={form.data.tarif_id} onChange={(e) => form.setData('tarif_id', e.target.value)}>
-                                <option value="">Pilih tarif aktif</option>
-                                {activeTarifs.map((tarif) => (
-                                    <option key={tarif.id} value={tarif.id}>
-                                        {tarif.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <FieldError message={form.errors.tarif_id} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700">Tahun Akademik</label>
-                                <input className="form-input mt-1" value={form.data.tahun_akademik} onChange={(e) => form.setData('tahun_akademik', e.target.value)} placeholder="Contoh: 2025/2026" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700">Semester</label>
-                                <input type="number" min="1" max="14" className="form-input mt-1" value={form.data.semester_akademik} onChange={(e) => form.setData('semester_akademik', e.target.value)} placeholder="1-14" />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-700">Jatuh Tempo</label>
-                            <input type="date" className="form-input mt-1" value={form.data.jatuh_tempo} onChange={(e) => form.setData('jatuh_tempo', e.target.value)} />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-700">Keterangan</label>
-                            <textarea rows="2" className="form-input mt-1" value={form.data.keterangan} onChange={(e) => form.setData('keterangan', e.target.value)} placeholder="Catatan tambahan (opsional)" />
-                        </div>
-                        <button type="submit" disabled={form.processing} className="btn-primary w-full">
-                            Simpan Tagihan
-                        </button>
-                    </form>
-                </section>
-
-                <section className="panel p-4 xl:col-span-2">
+            <div className="grid gap-4">
+                <section className="panel p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <h3 className="text-sm font-bold text-slate-900">Daftar Tagihan</h3>
                         <div className="flex items-center gap-2">
+                            <button type="button" className="btn-primary" onClick={() => setCreateModalOpen(true)}>
+                                Tambah Tagihan
+                            </button>
                             <button type="button" className="btn-primary" onClick={() => setBulkModalOpen(true)}>
                                 Tagihan Kolektif
                             </button>
@@ -719,6 +689,101 @@ export default function Page({
                     </div>
                 </section>
             </div>
+            <Modal show={createModalOpen} onClose={() => setCreateModalOpen(false)} maxWidth="2xl">
+                <div className="px-5 py-4">
+                    <h3 className="text-lg font-bold text-slate-900">Tambah Tagihan</h3>
+                    <p className="mt-1 text-xs text-slate-500">Pilih mahasiswa, tarif, dan opsi cicilan. Sistem akan membuat rincian tagihan otomatis.</p>
+                    {flash?.error && <p className="mt-2 rounded-lg bg-rose-100 px-3 py-2 text-xs font-semibold text-rose-700">{flash.error}</p>}
+                    <form onSubmit={submit} className="mt-4 space-y-3">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700">Mahasiswa</label>
+                                <select className="form-input mt-1" value={form.data.mahasiswa_id} onChange={(e) => form.setData('mahasiswa_id', e.target.value)}>
+                                    <option value="">Pilih mahasiswa</option>
+                                    {mahasiswas.map((m) => (
+                                        <option key={m.id} value={m.id}>
+                                            {m.nim} - {m.nama}
+                                        </option>
+                                    ))}
+                                </select>
+                                <FieldError message={form.errors.mahasiswa_id} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700">Tarif (Setup Tarif)</label>
+                                <select
+                                    className="form-input mt-1"
+                                    value={form.data.tarif_id}
+                                    onChange={(e) => {
+                                        const nextId = e.target.value;
+                                        form.setData('tarif_id', nextId);
+                                        const tarif = (activeTarifs || []).find((row) => Number(row.id) === Number(nextId));
+                                        form.setData('installment_months', tarif?.can_installment ? (tarif.installment_default || 1) : 1);
+                                    }}
+                                >
+                                    <option value="">Pilih tarif aktif</option>
+                                    {activeTarifs.map((tarif) => (
+                                        <option key={tarif.id} value={tarif.id}>
+                                            {tarif.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <FieldError message={form.errors.tarif_id} />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700">Tahun Akademik</label>
+                                <input className="form-input mt-1" value={form.data.tahun_akademik} onChange={(e) => form.setData('tahun_akademik', e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700">Semester</label>
+                                <input type="number" min="1" max="14" className="form-input mt-1" value={form.data.semester_akademik} onChange={(e) => form.setData('semester_akademik', e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700">Jatuh Tempo</label>
+                                <input type="date" className="form-input mt-1" value={form.data.jatuh_tempo} onChange={(e) => form.setData('jatuh_tempo', e.target.value)} />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700">Skema Pembayaran</label>
+                            {selectedTarif?.can_installment ? (
+                                <select className="form-input mt-1" value={form.data.installment_months} onChange={(e) => form.setData('installment_months', Number(e.target.value || 1))}>
+                                    {Array.from({ length: Math.max(1, Number(selectedTarif.installment_max || 1)) }, (_, idx) => idx + 1).map((months) => (
+                                        <option key={`inst-${months}`} value={months}>
+                                            {months === 1 ? 'Lunas Sekali Bayar' : `Cicil ${months} Bulan`}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <input className="form-input mt-1 bg-slate-50" value="Tarif ini tidak mendukung cicilan (sekali bayar)" disabled />
+                            )}
+                            {installmentPreview ? (
+                                <p className="mt-1 text-[11px] font-semibold text-slate-600">
+                                    Total {formatRupiah(selectedTarif?.nominal || 0)} dibagi {installmentPreview.months} bulan.
+                                    Per cicilan sekitar {formatRupiah(installmentPreview.perMonth)}
+                                    {installmentPreview.remainder > 0 ? ` (sisa pembulatan ${installmentPreview.remainder} akan ditambahkan ke cicilan awal).` : '.'}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700">Keterangan</label>
+                            <textarea rows="2" className="form-input mt-1" value={form.data.keterangan} onChange={(e) => form.setData('keterangan', e.target.value)} placeholder="Catatan tambahan (opsional)" />
+                        </div>
+
+                        <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                            <SecondaryButton type="button" onClick={() => setCreateModalOpen(false)}>
+                                Batal
+                            </SecondaryButton>
+                            <button type="submit" disabled={form.processing} className="btn-primary">
+                                {form.processing ? 'Menyimpan...' : 'Simpan Tagihan'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </Modal>
 
             <Modal show={Boolean(selectedTagihan)} onClose={() => setSelectedTagihan(null)} maxWidth="2xl">
                 {selectedTagihan && (
@@ -788,6 +853,7 @@ export default function Page({
                                                         <p className="mt-1 text-xs text-slate-500">
                                                             Total {formatRupiah(item.total)} - Terbayar {formatRupiah(item.paid_amount || 0)} - Sisa {formatRupiah(item.remaining_amount || 0)}
                                                         </p>
+                                                        <p className="mt-1 text-[11px] text-slate-500">Jatuh tempo item: {item.jatuh_tempo || '-'}</p>
                                                     </div>
                                                 </div>
                                                 {item.keterangan ? <p className="mt-3 text-xs text-slate-600">{item.keterangan}</p> : null}

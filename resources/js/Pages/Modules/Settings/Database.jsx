@@ -24,10 +24,10 @@ function formatBackupDateTime(backup) {
 export default function DatabaseMaintenancePage({ auth, backups = [], maintenanceLogs = [], logFilters = {}, availableTables = [] }) {
     const { menu, flash, errors } = usePage().props;
     const backupForm = useForm({ mode: 'full', label: '', tables: [] });
-    const restoreForm = useForm({ backup_file: null });
-    const restoreStoredForm = useForm({});
+    const restoreForm = useForm({ backup_file: null, confirmation: 'RESTORE DATABASE' });
+    const restoreStoredForm = useForm({ confirmation: 'RESTORE DATABASE' });
     const resetForm = useForm({ confirmation: '' });
-    const purgeForm = useForm({ older_than_days: 30 });
+    const purgeForm = useForm({ older_than_days: 30, confirmation: 'PURGE BACKUP' });
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [confirmAction, setConfirmAction] = useState(null);
     const [restoreToast, setRestoreToast] = useState(null);
@@ -537,6 +537,7 @@ export default function DatabaseMaintenancePage({ auth, backups = [], maintenanc
                             disabled={isBusy}
                             onClick={() => {
                                 router.delete(route('settings.database.delete', deleteTarget), {
+                                    data: { confirmation: 'DELETE BACKUP' },
                                     preserveScroll: true,
                                     onFinish: () => setDeleteTarget(null),
                                 });

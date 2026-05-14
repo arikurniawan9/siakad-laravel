@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 const providerCards = [
     { key: 'midtrans', label: 'Midtrans', description: 'Paling cocok untuk flow Snap yang sudah ada di sistem saat ini.' },
@@ -48,16 +48,40 @@ export default function PaymentGatewayPage({ auth, gatewaySettings, callbackUrls
         }
     };
 
+    const midtransModeWarning = useMemo(() => {
+        const server = (form.data.midtrans_server_key || '').trim();
+        const client = (form.data.midtrans_client_key || '').trim();
+        if (!server && !client) return '';
+
+        const serverLooksServer = server.toLowerCase().includes('server');
+        const clientLooksClient = client.toLowerCase().includes('client');
+        if (!serverLooksServer || !clientLooksClient) {
+            return 'Server key/client key terindikasi tertukar atau tidak valid. Pastikan kolom server berisi Mid-server/SB-Mid-server dan kolom client berisi Mid-client/SB-Mid-client.';
+        }
+
+        const serverSandbox = server.startsWith('SB-');
+        const clientSandbox = client.startsWith('SB-');
+
+        if (form.data.is_production && (serverSandbox || clientSandbox)) {
+            return 'Mode production aktif, tapi key masih sandbox (SB-).';
+        }
+        if (!form.data.is_production && (!serverSandbox || !clientSandbox)) {
+            return 'Mode sandbox aktif, tapi key terlihat production (non SB-).';
+        }
+        return '';
+    }, [form.data.is_production, form.data.midtrans_server_key, form.data.midtrans_client_key]);
+
     return (
         <AuthenticatedLayout user={auth.user} menu={menu}>
             <Head title="Pengaturan Payment Gateway" />
 
             <div className="space-y-5">
-                <section className="rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.16),_transparent_52%),linear-gradient(140deg,_#ffffff,_#f8fafc)] p-5 shadow-sm sm:p-6">
+                    <section className="rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.16),_transparent_52%),linear-gradient(140deg,_#ffffff,_#f8fafc)] p-5 shadow-sm sm:p-6">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Finance Integration</p>
                     <h3 className="mt-2 text-xl font-black tracking-tight text-slate-900">Koneksi Payment Gateway</h3>
                     <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-600">Pilih provider utama dan simpan kredensial agar modul keuangan/PMB bisa membuat transaksi online dengan callback otomatis.</p>
                     {flash?.success && <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">{flash.success}</div>}
+                    {flash?.error && <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{flash.error}</div>}
                 </section>
 
                 <form onSubmit={submit} className="space-y-4">
@@ -116,6 +140,12 @@ export default function PaymentGatewayPage({ auth, gatewaySettings, callbackUrls
                             <div className="mt-3 space-y-2">
                                 <input className="form-input" placeholder="Server Key" value={form.data.midtrans_server_key} onChange={(e) => form.setData('midtrans_server_key', e.target.value)} />
                                 <input className="form-input" placeholder="Client Key" value={form.data.midtrans_client_key} onChange={(e) => form.setData('midtrans_client_key', e.target.value)} />
+                                {midtransModeWarning ? (
+                                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">{midtransModeWarning}</p>
+                                ) : null}
+                                {form.errors.midtrans_server_key ? (
+                                    <p className="text-[11px] font-semibold text-rose-600">{form.errors.midtrans_server_key}</p>
+                                ) : null}
                             </div>
                         </article>
 

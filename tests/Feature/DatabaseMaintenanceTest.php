@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\DatabaseMaintenanceLog;
 use App\Models\Jurusan;
 use App\Models\User;
+use App\Support\SensitiveActionConfirmation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -75,7 +76,7 @@ class DatabaseMaintenanceTest extends TestCase
         ]);
 
         $this->actingAs($superAdmin)
-            ->post('/settings/database/reset', ['confirmation' => 'RESET DATABASE'])
+            ->post('/settings/database/reset', ['confirmation' => SensitiveActionConfirmation::RESET_DATABASE])
             ->assertSessionHasNoErrors();
 
         $this->assertEquals(1, User::query()->count());
@@ -89,11 +90,14 @@ class DatabaseMaintenanceTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->post('/settings/database/restore')
-            ->assertSessionHasErrors('backup_file');
+            ->assertSessionHasErrors(['backup_file', 'confirmation']);
 
         $sqlFile = UploadedFile::fake()->createWithContent('dummy.sql', "SET FOREIGN_KEY_CHECKS=1;\n");
         $this->actingAs($superAdmin)
-            ->post('/settings/database/restore', ['backup_file' => $sqlFile])
+            ->post('/settings/database/restore', [
+                'backup_file' => $sqlFile,
+                'confirmation' => SensitiveActionConfirmation::RESTORE_DATABASE,
+            ])
             ->assertSessionHasNoErrors();
 
         $this->assertTrue(DatabaseMaintenanceLog::query()->where('action', 'restore')->where('status', 'success')->exists());
@@ -105,7 +109,10 @@ class DatabaseMaintenanceTest extends TestCase
 
         $sqlFile = UploadedFile::fake()->createWithContent('dummy.sql', "START TRANSACTION;\nCOMMIT;\n");
         $this->actingAs($superAdmin)
-            ->post('/settings/database/restore', ['backup_file' => $sqlFile])
+            ->post('/settings/database/restore', [
+                'backup_file' => $sqlFile,
+                'confirmation' => SensitiveActionConfirmation::RESTORE_DATABASE,
+            ])
             ->assertSessionHasNoErrors();
     }
 
@@ -116,7 +123,9 @@ class DatabaseMaintenanceTest extends TestCase
         Storage::disk('local')->put('backups/sample.sql', "SET FOREIGN_KEY_CHECKS=1;\n");
 
         $this->actingAs($superAdmin)
-            ->post('/settings/database/restore/sample.sql')
+            ->post('/settings/database/restore/sample.sql', [
+                'confirmation' => SensitiveActionConfirmation::RESTORE_DATABASE,
+            ])
             ->assertSessionHasNoErrors();
     }
 
@@ -144,7 +153,9 @@ class DatabaseMaintenanceTest extends TestCase
         $filename = basename($files[0]);
 
         $this->actingAs($superAdmin)
-            ->delete('/settings/database/backup/'.$filename)
+            ->delete('/settings/database/backup/'.$filename, [
+                'confirmation' => SensitiveActionConfirmation::DELETE_BACKUP,
+            ])
             ->assertSessionHasNoErrors();
 
         $this->assertFalse(Storage::disk('local')->exists('backups/'.$filename));
@@ -159,7 +170,10 @@ class DatabaseMaintenanceTest extends TestCase
         touch(storage_path('app/backups/old-backup.sql'), $oldTs);
 
         $this->actingAs($superAdmin)
-            ->post('/settings/database/purge', ['older_than_days' => 30])
+            ->post('/settings/database/purge', [
+                'older_than_days' => 30,
+                'confirmation' => SensitiveActionConfirmation::PURGE_BACKUP,
+            ])
             ->assertSessionHasNoErrors();
 
         $this->assertFalse(Storage::disk('local')->exists('backups/old-backup.sql'));
@@ -174,5 +188,63 @@ class DatabaseMaintenanceTest extends TestCase
         $response->assertOk();
         $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
         $response->assertHeader('content-disposition');
+    }
+
+    public function test_restore_database_requires_exact_confirmation_phrase(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+        $sqlFile = UploadedFile::fake()->createWithContent('dummy.sql', "SET FOREIGN_KEY_CHECKS=1;\n");
+
+        $this->actingAs($superAdmin)
+            ->post('/settings/database/restore', [
+                'backup_file' => $sqlFile,
+                'confirmation' => 'RESTORE',
+            ])
+            ->assertSessionHasErrors('confirmation');
+    }
+
+    public function test_restore_stored_backup_requires_exact_confirmation_phrase(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+        Storage::disk('local')->put('backups/sample.sql', "SET FOREIGN_KEY_CHECKS=1;\n");
+
+        $this->actingAs($superAdmin)
+            ->post('/settings/database/restore/sample.sql', [
+                'confirmation' => 'RESTORE',
+            ])
+            ->assertSessionHasErrors('confirmation');
+    }
+
+    public function test_delete_backup_requires_exact_confirmation_phrase(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+        Storage::disk('local')->put('backups/sample.sql', "SET FOREIGN_KEY_CHECKS=1;\n");
+
+        $this->actingAs($superAdmin)
+            ->delete('/settings/database/backup/sample.sql', [
+                'confirmation' => 'DELETE',
+            ])
+            ->assertSessionHasErrors('confirmation');
+    }
+
+    public function test_purge_backup_requires_exact_confirmation_phrase(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+
+        $this->actingAs($superAdmin)
+            ->post('/settings/database/purge', [
+                'older_than_days' => 30,
+                'confirmation' => 'PURGE',
+            ])
+            ->assertSessionHasErrors('confirmation');
+    }
+
+    public function test_reset_database_requires_exact_confirmation_phrase(): void
+    {
+        $superAdmin = $this->makeSuperAdmin();
+
+        $this->actingAs($superAdmin)
+            ->post('/settings/database/reset', ['confirmation' => 'RESET'])
+            ->assertSessionHasErrors('confirmation');
     }
 }

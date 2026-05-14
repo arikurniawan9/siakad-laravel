@@ -11,7 +11,10 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class,
             SuperAdminSeeder::class,
+            AkademikMasterSeeder::class,
+            AkademikKrsSeeder::class,
             JenisPembayaranSeeder::class,
+            KeuanganSetupTarifSeeder::class,
         ]);
     }
 }

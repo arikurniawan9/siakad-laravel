@@ -44,6 +44,7 @@ $keuangan = [
 
 $keuanganSuperadmin = array_merge($keuangan, [
     ['label' => 'Payment Gateway', 'route' => 'settings.payment-gateway.index'],
+    ['label' => 'Otomasi Pembayaran', 'route' => 'settings.payment-automation.index'],
     ['label' => 'Closing / Period Lock', 'route' => 'settings.finance-period-locks.index'],
     ['label' => 'Rekonsiliasi Gateway', 'route' => 'settings.finance-reconciliation.index'],
 ]);

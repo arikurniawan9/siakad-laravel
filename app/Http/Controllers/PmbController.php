@@ -234,6 +234,10 @@ class PmbController extends Controller
         if (! $this->gatewayConfigService->isMidtransReady()) {
             return redirect()->route('pmb.payment')->with('error', 'Konfigurasi Midtrans belum lengkap.');
         }
+        $modeMismatchReason = $this->midtransService->modeKeyMismatchReason();
+        if ($modeMismatchReason !== null) {
+            return redirect()->route('pmb.payment')->with('error', $modeMismatchReason);
+        }
 
         $fee = (int) config('siakad.pmb_registration_fee');
         $snapCreated = false;

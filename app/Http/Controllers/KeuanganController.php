@@ -24,6 +24,7 @@ use App\Support\FinancePeriod;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -249,6 +250,9 @@ class KeuanganController extends Controller
                 'nominal' => (float) $tarif->nominal,
                 'tahun_akademik' => $tarif->tahun_akademik,
                 'semester_akademik' => (int) $tarif->semester_akademik,
+                'can_installment' => (bool) $tarif->can_installment,
+                'installment_max' => (int) ($tarif->installment_max ?? 1),
+                'installment_default' => (int) ($tarif->installment_default ?? 1),
                 'label' => ($tarif->jenisTagihan?->nama ?? ('Tarif #'.$tarif->id)).' - Rp '.number_format((float) $tarif->nominal, 0, ',', '.'),
             ])->values();
 
@@ -312,6 +316,7 @@ class KeuanganController extends Controller
                             'potongan' => (float) $item->potongan,
                             'denda' => (float) $item->denda,
                             'total' => (float) $item->total,
+                            'jatuh_tempo' => optional($item->jatuh_tempo)->toDateString(),
                             'paid_amount' => $paid,
                             'remaining_amount' => max((float) $item->total - $paid, 0),
                             'keterangan' => $item->keterangan,
@@ -436,6 +441,7 @@ class KeuanganController extends Controller
             'items.*.denda' => ['nullable', 'numeric', 'min:0'],
             'items.*.keterangan' => ['nullable', 'string', 'max:2000'],
             'items.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
+            'installment_months' => ['nullable', 'integer', 'min:1', 'max:24'],
 
             // Backward compatible (single item)
             'jenis' => ['nullable', 'string', 'max:30'],
@@ -488,6 +494,37 @@ class KeuanganController extends Controller
                 'sort_order' => (int) ($item['sort_order'] ?? $idx),
             ];
         });
+
+        $installmentMonths = max(1, (int) ($data['installment_months'] ?? 1));
+        $baseDueDate = filled($data['jatuh_tempo'] ?? null) ? Carbon::parse((string) $data['jatuh_tempo']) : null;
+        if ($installmentMonths > 1) {
+            $splitItems = collect();
+            foreach ($normalizedItems as $item) {
+                $total = (float) ($item['total'] ?? 0);
+                $chunks = $this->splitInstallmentAmounts($total, $installmentMonths);
+                foreach ($chunks as $index => $chunkAmount) {
+                    $splitItems->push([
+                        'jenis_tagihan_id' => $item['jenis_tagihan_id'],
+                        'kode' => substr((string) $item['kode'], 0, 22).'-'.($index + 1),
+                        'nama' => substr((string) $item['nama'].' (Cicilan '.($index + 1).'/'.$installmentMonths.')', 0, 120),
+                        'nominal' => $chunkAmount,
+                        'potongan' => 0,
+                        'denda' => 0,
+                        'total' => $chunkAmount,
+                        'jatuh_tempo' => $baseDueDate ? $baseDueDate->copy()->addMonthsNoOverflow($index)->toDateString() : null,
+                        'keterangan' => trim((string) (($item['keterangan'] ?? '').' | Cicilan '.($index + 1).' dari '.$installmentMonths)),
+                        'sort_order' => ((int) $item['sort_order'] * 100) + $index,
+                    ]);
+                }
+            }
+            $normalizedItems = $splitItems->values();
+        } else {
+            $normalizedItems = $normalizedItems->map(function (array $item) use ($baseDueDate) {
+                $item['jatuh_tempo'] = $baseDueDate ? $baseDueDate->toDateString() : null;
+
+                return $item;
+            });
+        }
 
         $sumNominal = (float) $normalizedItems->sum('nominal');
         $sumPotongan = (float) $normalizedItems->sum('potongan');
@@ -542,6 +579,21 @@ class KeuanganController extends Controller
         );
 
         return back()->with('success', 'Tagihan berhasil ditambahkan.');
+    }
+
+    private function splitInstallmentAmounts(float $amount, int $months): array
+    {
+        $safeMonths = max(1, $months);
+        $amountInt = (int) round($amount);
+        $base = intdiv($amountInt, $safeMonths);
+        $remainder = $amountInt % $safeMonths;
+        $chunks = [];
+
+        for ($i = 0; $i < $safeMonths; $i++) {
+            $chunks[] = (float) ($base + ($i < $remainder ? 1 : 0));
+        }
+
+        return $chunks;
     }
 
     public function storeBulkTagihan(Request $request): RedirectResponse
@@ -605,6 +657,10 @@ class KeuanganController extends Controller
         if ($provider === 'midtrans') {
             if (! $this->gatewayConfigService->isMidtransReady()) {
                 return back()->with('error', 'Konfigurasi Midtrans belum lengkap.');
+            }
+            $modeMismatchReason = $this->midtransService->modeKeyMismatchReason();
+            if ($modeMismatchReason !== null) {
+                return back()->with('error', $modeMismatchReason);
             }
 
             $payload = [
@@ -804,6 +860,7 @@ class KeuanganController extends Controller
         $perPage = in_array($perPage, [10, 30, 50, 100], true) ? $perPage : 10;
         $search = trim((string) $request->string('search'));
         $status = (string) $request->string('status', 'all');
+        $reconciliation = (string) $request->string('reconciliation', 'all');
         $sortBy = (string) $request->string('sort_by', 'latest');
         $sortDir = (string) $request->string('sort_dir', 'desc');
         $allowedSorts = ['latest', 'order_id', 'payment_type', 'gross_amount', 'status', 'paid_at'];

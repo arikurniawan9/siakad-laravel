@@ -197,6 +197,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/settings/payment-gateway', [SettingsController::class, 'paymentGateway'])->name('settings.payment-gateway.index');
         Route::put('/settings/payment-gateway', [SettingsController::class, 'updatePaymentGateway'])->name('settings.payment-gateway.update');
         Route::post('/settings/payment-gateway/test', [SettingsController::class, 'testPaymentGateway'])->name('settings.payment-gateway.test');
+        Route::get('/settings/payment-automation', [SettingsController::class, 'paymentAutomation'])->name('settings.payment-automation.index');
+        Route::put('/settings/payment-automation', [SettingsController::class, 'updatePaymentAutomation'])->name('settings.payment-automation.update');
         Route::get('/settings/finance-period-locks', [SettingsController::class, 'financePeriodLocks'])->name('settings.finance-period-locks.index');
         Route::post('/settings/finance-period-locks', [SettingsController::class, 'storeFinancePeriodLock'])->name('settings.finance-period-locks.store');
         Route::delete('/settings/finance-period-locks/{lock}', [SettingsController::class, 'destroyFinancePeriodLock'])->name('settings.finance-period-locks.destroy');

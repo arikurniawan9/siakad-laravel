@@ -22,7 +22,7 @@ class UpdateProdiRequest extends FormRequest
             'nama' => ['required', 'string', 'max:255'],
             'jenjang' => ['required', 'string', 'max:10'],
             'semester_total' => ['required', 'integer', 'min:1', 'max:14'],
-            'sks_lulus' => ['required', 'integer', 'min:1', 'max:200'],
+            'sks_lulus' => ['nullable', 'integer', 'min:0', 'max:200'],
         ];
     }
 }

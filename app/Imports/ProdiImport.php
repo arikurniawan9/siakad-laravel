@@ -21,7 +21,7 @@ class ProdiImport implements ToCollection, WithHeadingRow, SkipsEmptyRows
                 'nama' => (string) ($row['nama'] ?? ''),
                 'jenjang' => (string) ($row['jenjang'] ?? 'S1'),
                 'semester_total' => (string) ($row['semester_total'] ?? '8'),
-                'sks_lulus' => (string) ($row['sks_lulus'] ?? '144'),
+                'sks_lulus' => (string) ($row['sks_lulus'] ?? $row['sks_lulus_opsional_auto'] ?? ''),
                 'is_active' => (string) ($row['is_active'] ?? '0'),
             ];
         }

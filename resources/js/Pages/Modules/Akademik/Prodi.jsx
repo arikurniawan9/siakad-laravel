@@ -92,8 +92,8 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
         { value: 'S3', label: 'S3 (Doktor)' },
     ];
 
-    const form = useForm({ jurusan_id: '', kode: '', nama: '', jenjang: 'S1', semester_total: 8, sks_lulus: 144 });
-    const edit = useForm({ jurusan_id: '', kode: '', nama: '', jenjang: 'S1', semester_total: 8, sks_lulus: 144 });
+    const form = useForm({ jurusan_id: '', kode: '', nama: '', jenjang: 'S1', semester_total: 8 });
+    const edit = useForm({ jurusan_id: '', kode: '', nama: '', jenjang: 'S1', semester_total: 8 });
     const importForm = useForm({ file: null });
 
     const deleteForm = useForm();
@@ -123,7 +123,7 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
         e.preventDefault();
         form.post(route('akademik.prodi.store'), {
             preserveScroll: true,
-            onSuccess: () => form.reset('jurusan_id', 'kode', 'nama', 'jenjang', 'semester_total', 'sks_lulus'),
+            onSuccess: () => form.reset('jurusan_id', 'kode', 'nama', 'jenjang', 'semester_total'),
         });
     };
 
@@ -160,7 +160,6 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
             nama: item.nama || '',
             jenjang: item.jenjang || 'S1',
             semester_total: item.semester_total ?? 8,
-            sks_lulus: item.sks_lulus ?? 144,
         });
     };
 
@@ -237,18 +236,8 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
                                 <FieldError message={form.errors.semester_total} />
                             </div>
                         </div>
-                        <div>
-                            <label className="mb-1 block text-xs font-bold text-slate-700">SKS Lulus</label>
-                            <input
-                                type="number"
-                                min="0"
-                                className="form-input"
-                                placeholder="Contoh: 144"
-                                value={form.data.sks_lulus}
-                                onChange={(e) => form.setData('sks_lulus', e.target.value)}
-                            />
-                            <p className="mt-1 text-[11px] text-slate-500">S1 umumnya 144 SKS (sesuaikan kebijakan kampus).</p>
-                            <FieldError message={form.errors.sks_lulus} />
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
+                            SKS Lulus dihitung otomatis dari total SKS semua mata kuliah dalam jurusan prodi ini.
                         </div>
                         <button className="btn-primary w-full" type="submit" disabled={form.processing}>
                             Simpan Prodi
@@ -259,6 +248,9 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Import Data</p>
                             <h3 className="mt-1 text-sm font-bold text-slate-900">Upload Excel / CSV</h3>
+                            <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800">
+                                Catatan: `sks_lulus` dihitung otomatis dari total SKS mata kuliah per jurusan.
+                            </p>
                         </div>
                         <a href={route('akademik.prodi.template')} className="btn-outline flex w-full items-center justify-center">
                             Download Template
@@ -270,7 +262,7 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
                                 {importForm.processing ? 'Mengimpor...' : 'Import Prodi'}
                             </button>
                         </form>
-                        <p className="text-xs text-slate-500">Kolom yang dibaca: jurusan_kode, kode, nama, jenjang, semester_total, sks_lulus, is_active.</p>
+                        <p className="text-xs text-slate-500">Kolom yang dibaca: jurusan_kode, kode, nama, jenjang, semester_total, sks_lulus, is_active. Nilai sks_lulus akan disinkronkan otomatis dari mata kuliah jurusan.</p>
                         {importForm.processing && (
                             <div className="absolute inset-0 rounded-2xl bg-white/75 p-4 backdrop-blur-[1px]">
                                 <ImportSpinner />
@@ -355,7 +347,7 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
                                                 onClick={() => setShowAdvancedEdit((prev) => !prev)}
                                                 className="inline-flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                                             >
-                                                <span>Pengaturan lanjutan (Semester & SKS)</span>
+                                                <span>Pengaturan lanjutan (Semester)</span>
                                                 <span className="text-slate-500">{showAdvancedEdit ? 'Sembunyikan' : 'Tampilkan'}</span>
                                             </button>
 
@@ -367,11 +359,8 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
                                                         <p className="mt-1 text-[11px] text-slate-500">S1 umumnya 8 semester.</p>
                                                         <FieldError message={edit.errors.semester_total} />
                                                     </div>
-                                                    <div>
-                                                        <label className="mb-1 block text-xs font-bold text-slate-700">SKS Lulus</label>
-                                                        <input type="number" min="0" className="form-input" value={edit.data.sks_lulus} onChange={(e) => edit.setData('sks_lulus', e.target.value)} />
-                                                        <p className="mt-1 text-[11px] text-slate-500">S1 umumnya 144 SKS.</p>
-                                                        <FieldError message={edit.errors.sks_lulus} />
+                                                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-800">
+                                                        SKS lulus otomatis dari mata kuliah jurusan.
                                                     </div>
                                                 </div>
                                             )}
@@ -443,7 +432,7 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
                                                             onClick={() => setShowAdvancedEdit((prev) => !prev)}
                                                             className="inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                                                         >
-                                                            <span>Semester & SKS</span>
+                                                            <span>Semester</span>
                                                             <span className="text-slate-500">{showAdvancedEdit ? 'Sembunyikan' : 'Tampilkan'}</span>
                                                         </button>
 
@@ -462,17 +451,8 @@ export default function Page({ auth, tabs = [], filters = null, jurusans = [], p
                                                                     />
                                                                     <FieldError message={edit.errors.semester_total} />
                                                                 </div>
-                                                                <div>
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        className="form-input h-9 text-xs"
-                                                                        value={edit.data.sks_lulus}
-                                                                        onChange={(e) => edit.setData('sks_lulus', e.target.value)}
-                                                                        title="SKS Lulus"
-                                                                        placeholder="SKS lulus"
-                                                                    />
-                                                                    <FieldError message={edit.errors.sks_lulus} />
+                                                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-800">
+                                                                    SKS lulus otomatis dari mata kuliah jurusan.
                                                                 </div>
                                                             </div>
                                                         )}
